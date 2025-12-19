@@ -8,6 +8,7 @@ sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 import zuspec.dataclasses as zdc
 from zuspec.be.fv.analysis import BoundsAnalyzer
 from zuspec.be.fv.solver import SolverResult
+from conftest import get_struct_type
 
 
 @pytest.fixture
@@ -26,7 +27,7 @@ def test_check_memory_access_safe(analyzer):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(SafeAccess)
-    struct_type = context.type_m['SafeAccess']
+    struct_type = get_struct_type(context, SafeAccess)
     
     # Check that base + size <= 0x2000 (should be safe given constraints)
     result = analyzer.check_memory_access('base', 'size', 0x2000, struct_type)
@@ -47,7 +48,7 @@ def test_check_memory_access_violation(analyzer):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(UnsafeAccess)
-    struct_type = context.type_m['UnsafeAccess']
+    struct_type = get_struct_type(context, UnsafeAccess)
     
     # Check that base + size <= 0x1000 (violation possible)
     result = analyzer.check_memory_access('base', 'size', 0x1000, struct_type)
@@ -78,7 +79,7 @@ def test_check_memory_access_tight_bounds(analyzer):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(TightBounds)
-    struct_type = context.type_m['TightBounds']
+    struct_type = get_struct_type(context, TightBounds)
     
     # Check base + size <= 150 (should be safe: max is 100 + 10 = 110)
     result = analyzer.check_memory_access('base', 'size', 150, struct_type)
@@ -97,7 +98,7 @@ def test_check_no_overflow_safe(analyzer):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(NoOverflow)
-    struct_type = context.type_m['NoOverflow']
+    struct_type = get_struct_type(context, NoOverflow)
     
     # Check a + b for overflow (max is 200, fits in uint8 range after consideration)
     # Actually, uint8 max is 255, so 100 + 100 = 200 is safe
@@ -118,7 +119,7 @@ def test_check_no_overflow_possible(analyzer):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(CanOverflow)
-    struct_type = context.type_m['CanOverflow']
+    struct_type = get_struct_type(context, CanOverflow)
     
     # Check a + b for overflow (max is 250 + 100 = 350 > 255)
     result = analyzer.check_no_overflow('a', 'b', struct_type)
@@ -141,7 +142,7 @@ def test_check_non_overlapping_safe(analyzer):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(NonOverlapping)
-    struct_type = context.type_m['NonOverlapping']
+    struct_type = get_struct_type(context, NonOverlapping)
     
     # Check if regions can overlap
     result = analyzer.check_non_overlapping('src_base', 'src_size', 
@@ -165,7 +166,7 @@ def test_check_non_overlapping_can_overlap(analyzer):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(CanOverlap)
-    struct_type = context.type_m['CanOverlap']
+    struct_type = get_struct_type(context, CanOverlap)
     
     # Check if regions can overlap
     result = analyzer.check_non_overlapping('src_base', 'src_size',
@@ -187,7 +188,7 @@ def test_analyzer_field_not_found(analyzer):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(SimpleStruct)
-    struct_type = context.type_m['SimpleStruct']
+    struct_type = get_struct_type(context, SimpleStruct)
     
     # Try to check with non-existent field
     with pytest.raises(ValueError, match="not found"):
@@ -204,7 +205,7 @@ def test_analyzer_timing_info(analyzer):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(TimingTest)
-    struct_type = context.type_m['TimingTest']
+    struct_type = get_struct_type(context, TimingTest)
     
     result = analyzer.check_memory_access('base', 'size', 2000, struct_type)
     

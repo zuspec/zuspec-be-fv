@@ -91,9 +91,17 @@ def check_bounds(dtype: Type,
                 base_var = problem.variables[base_field]
                 size_var = problem.variables[size_field]
                 
+                # Ensure matching bit widths for Z3 operations
+                import z3
+                base_width = base_var.size()
+                size_width = size_var.size()
+                if base_width > size_width:
+                    size_var = z3.ZeroExt(base_width - size_width, size_var)
+                elif size_width > base_width:
+                    base_var = z3.ZeroExt(size_width - base_width, base_var)
+                
                 # Add constraint: base + size must be <= bound
                 # We don't check for violation here, just add the constraint
-                import z3
                 solver_backend.add_constraint(z3.ULE(base_var + size_var, bound))
     
     # Check if constraints are satisfiable
@@ -103,7 +111,7 @@ def check_bounds(dtype: Type,
     
     elapsed_ms = (time.time() - start_time) * 1000
     
-    if result == SolverResult.SAT:
+    if result.result == SolverResult.SAT:
         # Constraints are satisfiable - bounds can be satisfied
         model = solver_backend.get_model()
         return VerificationResult(
@@ -111,16 +119,16 @@ def check_bounds(dtype: Type,
             counterexample=model,  # This is actually a valid example, not a counterexample
             solver_time_ms=elapsed_ms,
             solver_name=solver,
-            result=result
+            result=SolverResult.SAT
         )
-    elif result == SolverResult.UNSAT:
+    elif result.result == SolverResult.UNSAT:
         # Constraints are unsatisfiable - bounds are contradictory
         return VerificationResult(
             holds=False,
             counterexample=None,
             solver_time_ms=elapsed_ms,
             solver_name=solver,
-            result=result
+            result=SolverResult.UNSAT
         )
     else:
         # Unknown
@@ -129,7 +137,7 @@ def check_bounds(dtype: Type,
             counterexample=None,
             solver_time_ms=elapsed_ms,
             solver_name=solver,
-            result=result
+            result=SolverResult.UNKNOWN
         )
 
 

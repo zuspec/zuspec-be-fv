@@ -7,6 +7,7 @@ sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 
 import zuspec.dataclasses as zdc
 from zuspec.be.fv.translator import DataModelTranslator, SMTProblem
+from conftest import get_struct_type
 
 
 @pytest.fixture
@@ -63,7 +64,7 @@ def test_translate_simple_struct(translator):
     # Get data model
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(SimpleStruct)
-    struct_type = context.type_m['SimpleStruct']
+    struct_type = get_struct_type(context, SimpleStruct)
     
     # Translate
     problem = translator.translate_struct(struct_type)
@@ -88,7 +89,7 @@ def test_translate_struct_with_multiple_fields(translator):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(MultiFieldStruct)
-    struct_type = context.type_m['MultiFieldStruct']
+    struct_type = get_struct_type(context, MultiFieldStruct)
     
     problem = translator.translate_struct(struct_type)
     
@@ -115,7 +116,7 @@ def test_translate_struct_no_bounds(translator):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(NoBoundsStruct)
-    struct_type = context.type_m['NoBoundsStruct']
+    struct_type = get_struct_type(context, NoBoundsStruct)
     
     problem = translator.translate_struct(struct_type)
     
@@ -137,9 +138,9 @@ def test_extract_field_bounds(translator):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(BoundedStruct)
-    struct_type = context.type_m['BoundedStruct']
+    struct_type = get_struct_type(context, BoundedStruct)
     
-    bounds = translator.extract_field_bounds(struct_type)
+    bounds = translator.extract_field_bounds(struct_type, BoundedStruct)
     
     assert 'low' in bounds
     assert bounds['low'] == (0, 50)
@@ -157,7 +158,7 @@ def test_translate_signed_field(translator):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(SignedStruct)
-    struct_type = context.type_m['SignedStruct']
+    struct_type = get_struct_type(context, SignedStruct)
     
     problem = translator.translate_struct(struct_type)
     
@@ -177,7 +178,7 @@ def test_translate_with_verification(translator):
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(VerifiableStruct)
-    struct_type = context.type_m['VerifiableStruct']
+    struct_type = get_struct_type(context, VerifiableStruct)
     
     problem = translator.translate_struct(struct_type)
     

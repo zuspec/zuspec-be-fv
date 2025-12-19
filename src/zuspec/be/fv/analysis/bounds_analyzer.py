@@ -52,6 +52,9 @@ class BoundsAnalyzer:
         """
         start_time = time.time()
         
+        # Reset solver for clean state
+        self.solver.reset()
+        
         # Translate struct to SMT problem
         problem = self.translator.translate_struct(struct_type)
         
@@ -68,17 +71,29 @@ class BoundsAnalyzer:
         base_var = problem.variables[base]
         size_var = problem.variables[size]
         
+        # Ensure both variables have the same bit width for Z3 operations
+        import z3
+        base_width = base_var.size()
+        size_width = size_var.size()
+        
+        if base_width > size_width:
+            # Extend size to match base width
+            size_var = z3.ZeroExt(base_width - size_width, size_var)
+        elif size_width > base_width:
+            # Extend base to match size width
+            base_var = z3.ZeroExt(size_width - base_width, base_var)
+        
         # Add the violation condition: base + size > bound
         # We check for violations (SAT = violation exists, UNSAT = safe)
         violation = base_var + size_var > bound
         self.solver.add_constraint(violation)
         
-        # Check satisfiability
+        # Check satisfiability and get raw Z3 result
         result = self.solver.check_sat()
         
         elapsed_ms = (time.time() - start_time) * 1000
         
-        if result == SolverResult.SAT:
+        if result.result == SolverResult.SAT:
             # Violation found - get counterexample
             model = self.solver.get_model()
             return VerificationResult(
@@ -86,16 +101,16 @@ class BoundsAnalyzer:
                 counterexample=model,
                 solver_time_ms=elapsed_ms,
                 solver_name="z3",
-                result=result
+                result=SolverResult.SAT
             )
-        elif result == SolverResult.UNSAT:
+        elif result.result == SolverResult.UNSAT:
             # No violation possible - property holds
             return VerificationResult(
                 holds=True,
                 counterexample=None,
                 solver_time_ms=elapsed_ms,
                 solver_name="z3",
-                result=result
+                result=SolverResult.UNSAT
             )
         else:
             # Unknown result
@@ -104,7 +119,7 @@ class BoundsAnalyzer:
                 counterexample=None,
                 solver_time_ms=elapsed_ms,
                 solver_name="z3",
-                result=result
+                result=SolverResult.UNKNOWN
             )
     
     def check_no_overflow(self,
@@ -123,6 +138,9 @@ class BoundsAnalyzer:
         """
         start_time = time.time()
         
+        # Reset solver for clean state
+        self.solver.reset()
+        
         # Translate struct to SMT problem
         problem = self.translator.translate_struct(struct_type)
         
@@ -139,41 +157,46 @@ class BoundsAnalyzer:
         var1 = problem.variables[field1]
         var2 = problem.variables[field2]
         
-        # Get bit widths
-        info1 = problem.field_info.get(field1, {})
-        info2 = problem.field_info.get(field2, {})
-        width1 = info1.get('width', 32)
-        width2 = info2.get('width', 32)
-        
-        # Maximum value for the bit width
-        max_val = (1 << max(width1, width2)) - 1
-        
-        # Check for overflow: var1 + var2 > max_val
+        # Ensure both variables have the same bit width for Z3 operations
         import z3
-        # For bitvectors, overflow occurs when addition wraps
-        # We use z3.UGT for unsigned greater than
-        overflow = z3.UGT(var1 + var2, max_val)
+        width1 = var1.size()
+        width2 = var2.size()
+        
+        if width1 > width2:
+            var2 = z3.ZeroExt(width1 - width2, var2)
+            max_width = width1
+        elif width2 > width1:
+            var1 = z3.ZeroExt(width2 - width1, var1)
+            max_width = width2
+        else:
+            max_width = width1
+        
+        # Check for overflow using Z3's builtin overflow detection
+        # For unsigned addition, overflow occurs when the sum wraps around
+        # This is detected when: (a + b) < a  OR  (a + b) < b
+        sum_val = var1 + var2
+        overflow = z3.Or(z3.ULT(sum_val, var1), z3.ULT(sum_val, var2))
         self.solver.add_constraint(overflow)
         
         result = self.solver.check_sat()
         elapsed_ms = (time.time() - start_time) * 1000
         
-        if result == SolverResult.SAT:
+        if result.result == SolverResult.SAT:
             model = self.solver.get_model()
             return VerificationResult(
                 holds=False,
                 counterexample=model,
                 solver_time_ms=elapsed_ms,
                 solver_name="z3",
-                result=result
+                result=SolverResult.SAT
             )
-        elif result == SolverResult.UNSAT:
+        elif result.result == SolverResult.UNSAT:
             return VerificationResult(
                 holds=True,
                 counterexample=None,
                 solver_time_ms=elapsed_ms,
                 solver_name="z3",
-                result=result
+                result=SolverResult.UNSAT
             )
         else:
             return VerificationResult(
@@ -181,7 +204,7 @@ class BoundsAnalyzer:
                 counterexample=None,
                 solver_time_ms=elapsed_ms,
                 solver_name="z3",
-                result=result
+                result=SolverResult.UNKNOWN
             )
     
     def check_non_overlapping(self,
@@ -206,6 +229,9 @@ class BoundsAnalyzer:
         """
         start_time = time.time()
         
+        # Reset solver for clean state
+        self.solver.reset()
+        
         # Translate struct to SMT problem
         problem = self.translator.translate_struct(struct_type)
         
@@ -219,6 +245,25 @@ class BoundsAnalyzer:
         dst_base_var = problem.variables[dst_base]
         dst_size_var = problem.variables[dst_size]
         
+        # Ensure matching bit widths for arithmetic operations
+        import z3
+        
+        # Extend src_size to match src_base width
+        src_base_width = src_base_var.size()
+        src_size_width = src_size_var.size()
+        if src_base_width > src_size_width:
+            src_size_var = z3.ZeroExt(src_base_width - src_size_width, src_size_var)
+        elif src_size_width > src_base_width:
+            src_base_var = z3.ZeroExt(src_size_width - src_base_width, src_base_var)
+        
+        # Extend dst_size to match dst_base width
+        dst_base_width = dst_base_var.size()
+        dst_size_width = dst_size_var.size()
+        if dst_base_width > dst_size_width:
+            dst_size_var = z3.ZeroExt(dst_base_width - dst_size_width, dst_size_var)
+        elif dst_size_width > dst_base_width:
+            dst_base_var = z3.ZeroExt(dst_size_width - dst_base_width, dst_base_var)
+        
         # Calculate end addresses
         src_end = src_base_var + src_size_var
         dst_end = dst_base_var + dst_size_var
@@ -226,7 +271,6 @@ class BoundsAnalyzer:
         # Overlap condition (negation of non-overlap)
         # Overlap: NOT (src_end <= dst_base OR dst_end <= src_base)
         # Which is: src_end > dst_base AND dst_end > src_base
-        import z3
         overlap = z3.And(
             z3.UGT(src_end, dst_base_var),
             z3.UGT(dst_end, src_base_var)
@@ -236,22 +280,22 @@ class BoundsAnalyzer:
         result = self.solver.check_sat()
         elapsed_ms = (time.time() - start_time) * 1000
         
-        if result == SolverResult.SAT:
+        if result.result == SolverResult.SAT:
             model = self.solver.get_model()
             return VerificationResult(
                 holds=False,  # Overlap possible
                 counterexample=model,
                 solver_time_ms=elapsed_ms,
                 solver_name="z3",
-                result=result
+                result=SolverResult.SAT
             )
-        elif result == SolverResult.UNSAT:
+        elif result.result == SolverResult.UNSAT:
             return VerificationResult(
                 holds=True,  # No overlap possible
                 counterexample=None,
                 solver_time_ms=elapsed_ms,
                 solver_name="z3",
-                result=result
+                result=SolverResult.UNSAT
             )
         else:
             return VerificationResult(
@@ -259,5 +303,5 @@ class BoundsAnalyzer:
                 counterexample=None,
                 solver_time_ms=elapsed_ms,
                 solver_name="z3",
-                result=result
+                result=SolverResult.UNKNOWN
             )

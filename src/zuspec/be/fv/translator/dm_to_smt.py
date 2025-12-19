@@ -3,7 +3,7 @@ Data Model to SMT translation.
 
 Converts Zuspec dataclass structures (via data model) into SMT constraints.
 """
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Type
 import sys
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 
@@ -144,11 +144,12 @@ class DataModelTranslator:
             for constraint in nested_problem.constraints:
                 problem.add_constraint(constraint)
     
-    def extract_field_bounds(self, struct_type: Any) -> Dict[str, Tuple[int, int]]:
+    def extract_field_bounds(self, struct_type: Any, py_type: Optional[Type] = None) -> Dict[str, Tuple[int, int]]:
         """Extract bounds metadata from all fields.
         
         Args:
             struct_type: DataTypeStruct from data model
+            py_type: Optional Python class for metadata extraction
             
         Returns:
             Dictionary mapping field names to (min, max) bounds
@@ -158,8 +159,22 @@ class DataModelTranslator:
         if dm is None or not isinstance(struct_type, dm.DataTypeStruct):
             return bounds_map
         
+        # Get Python type if not provided
+        if py_type is None and hasattr(struct_type, 'py_type'):
+            py_type = struct_type.py_type
+        
+        # Get Python dataclass fields metadata if available
+        metadata_map = {}
+        if py_type is not None:
+            import dataclasses
+            try:
+                for py_field in dataclasses.fields(py_type):
+                    metadata_map[py_field.name] = py_field.metadata or {}
+            except:
+                pass
+        
         for field in struct_type.fields:
-            metadata = getattr(field, 'metadata', {}) or {}
+            metadata = metadata_map.get(field.name, {})
             if 'bounds' in metadata:
                 bounds = metadata['bounds']
                 if isinstance(bounds, (tuple, list)) and len(bounds) == 2:
