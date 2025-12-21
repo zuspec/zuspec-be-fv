@@ -14,10 +14,10 @@ except ImportError:
     dm = None
     data_model_factory = None
 
-from .solver.z3_solver import Z3Solver
 from .solver.result import VerificationResult, SolverResult
-from .translator.dm_to_smt import DataModelTranslator
-from .analysis.bounds_analyzer import BoundsAnalyzer
+
+# NOTE: Python-Z3-backed modules are imported lazily to keep this package
+# importable without the Z3 Python bindings.
 
 
 def check_bounds(dtype: Type,
@@ -65,6 +65,9 @@ def check_bounds(dtype: Type,
     struct_type = context.type_m[type_name]
     
     # Create solver and translator
+    from .solver.z3_solver import Z3Solver
+    from .translator.dm_to_smt import DataModelTranslator
+
     solver_backend = Z3Solver() if solver == "z3" else Z3Solver()
     translator = DataModelTranslator()
     
@@ -198,6 +201,8 @@ def check_no_overflow(dtype: Type,
     struct_type = context.type_m[type_name]
     
     # Use bounds analyzer
+    from .analysis.bounds_analyzer import BoundsAnalyzer
+
     analyzer = BoundsAnalyzer()
     return analyzer.check_no_overflow(fields[0], fields[1], struct_type)
 
@@ -242,5 +247,7 @@ def find_bounds_violation(dtype: Type,
     struct_type = context.type_m[type_name]
     
     # Use bounds analyzer
+    from .analysis.bounds_analyzer import BoundsAnalyzer
+
     analyzer = BoundsAnalyzer()
     return analyzer.check_memory_access(base_field, size_field, memory_bound, struct_type)

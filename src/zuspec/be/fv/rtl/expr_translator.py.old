@@ -1,0 +1,218 @@
+"""
+Expression to SMT2 Translator.
+
+Translates Zuspec expression AST nodes to SMT2 expressions.
+"""
+
+from typing import Any, Optional
+import sys
+sys.path.insert(0, 'packages/zuspec-dataclasses/src')
+
+try:
+    from zuspec.dataclasses import dm
+except ImportError:
+    dm = None
+
+
+class ExprToSMT2Translator:
+    """Translates Zuspec expressions to SMT2 format.
+    
+    This visitor traverses expression AST nodes and generates corresponding
+    SMT2 expressions using bitvector and boolean logic.
+    """
+    
+    def __init__(self):
+        """Initialize translator."""
+        self.context = {}  # Context for variable resolution
+    
+    def translate(self, expr: Any) -> str:
+        """Translate an expression to SMT2.
+        
+        Args:
+            expr: Expression node from Zuspec AST
+            
+        Returns:
+            SMT2 expression string
+        """
+        if dm is None:
+            raise ImportError("zuspec.dataclasses not available")
+        
+        # Dispatch to appropriate handler based on expression type
+        if isinstance(expr, dm.ExprBin):
+            return self.translate_bin(expr)
+        elif isinstance(expr, dm.ExprUnary):
+            return self.translate_unary(expr)
+        elif isinstance(expr, dm.ExprConstant):
+            return self.translate_constant(expr)
+        elif isinstance(expr, dm.ExprRefField):
+            return self.translate_ref_field(expr)
+        elif isinstance(expr, dm.ExprRefParam):
+            return self.translate_ref_param(expr)
+        elif isinstance(expr, dm.ExprRefLocal):
+            return self.translate_ref_local(expr)
+        elif isinstance(expr, dm.TypeExprRefSelf):
+            return self.translate_ref_self(expr)
+        elif isinstance(expr, dm.ExprCall):
+            return self.translate_call(expr)
+        elif isinstance(expr, dm.ExprCompare):
+            return self.translate_compare(expr)
+        else:
+            # Fallback for unsupported expressions
+            return "true"  # Placeholder
+    
+    def translate_bin(self, expr: Any) -> str:
+        """Translate binary operation.
+        
+        Args:
+            expr: ExprBin node
+            
+        Returns:
+            SMT2 binary operation expression
+        """
+        lhs = self.translate(expr.lhs)
+        rhs = self.translate(expr.rhs)
+        
+        # Map Zuspec binary operators to SMT2
+        op_map = {
+            dm.BinOp.Add: "bvadd",
+            dm.BinOp.Sub: "bvsub",
+            dm.BinOp.Mult: "bvmul",
+            dm.BinOp.Div: "bvudiv",  # Unsigned division
+            dm.BinOp.Mod: "bvurem",  # Unsigned remainder
+            dm.BinOp.BitAnd: "bvand",
+            dm.BinOp.BitOr: "bvor",
+            dm.BinOp.BitXor: "bvxor",
+            dm.BinOp.LShift: "bvshl",
+            dm.BinOp.RShift: "bvlshr",  # Logical right shift
+            dm.BinOp.Eq: "=",
+            dm.BinOp.NotEq: "distinct",
+            dm.BinOp.Lt: "bvult",  # Unsigned less than
+            dm.BinOp.LtE: "bvule",
+            dm.BinOp.Gt: "bvugt",
+            dm.BinOp.GtE: "bvuge",
+            dm.BinOp.And: "and",
+            dm.BinOp.Or: "or",
+        }
+        
+        smt_op = op_map.get(expr.op, "unknown")
+        return f"({smt_op} {lhs} {rhs})"
+    
+    def translate_unary(self, expr: Any) -> str:
+        """Translate unary operation.
+        
+        Args:
+            expr: ExprUnary node
+            
+        Returns:
+            SMT2 unary operation expression
+        """
+        operand = self.translate(expr.operand)
+        
+        op_map = {
+            dm.UnaryOp.Invert: "bvnot",
+            dm.UnaryOp.Not: "not",
+            dm.UnaryOp.USub: "bvneg",
+        }
+        
+        smt_op = op_map.get(expr.op, "unknown")
+        return f"({smt_op} {operand})"
+    
+    def translate_constant(self, expr: Any) -> str:
+        """Translate constant value.
+        
+        Args:
+            expr: ExprConstant node
+            
+        Returns:
+            SMT2 constant representation
+        """
+        value = expr.value
+        
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        elif isinstance(value, int):
+            # Convert to bitvector - need to determine width from context
+            # For now, use a default width
+            width = 32  # TODO: Infer from context
+            if value >= 0:
+                binary = bin(value)[2:].zfill(width)
+            else:
+                # Two's complement for negative numbers
+                binary = bin((1 << width) + value)[2:].zfill(width)
+            return f"#b{binary}"
+        elif value is None:
+            return "false"  # Represent None as false
+        else:
+            # String or other type
+            return "true"  # Placeholder
+    
+    def translate_ref_field(self, expr: Any) -> str:
+        """Translate field reference.
+        
+        Args:
+            expr: ExprRefField node
+            
+        Returns:
+            SMT2 field reference
+        """
+        # TODO: Need to map field index to SMT2 signal name
+        # This requires context from the component
+        return f"field_{expr.index}"
+    
+    def translate_ref_param(self, expr: Any) -> str:
+        """Translate parameter reference.
+        
+        Args:
+            expr: ExprRefParam node
+            
+        Returns:
+            SMT2 parameter reference
+        """
+        return expr.name
+    
+    def translate_ref_local(self, expr: Any) -> str:
+        """Translate local variable reference.
+        
+        Args:
+            expr: ExprRefLocal node
+            
+        Returns:
+            SMT2 local variable reference
+        """
+        return expr.name
+    
+    def translate_ref_self(self, expr: Any) -> str:
+        """Translate self reference.
+        
+        Args:
+            expr: TypeExprRefSelf node
+            
+        Returns:
+            SMT2 self reference (state parameter)
+        """
+        return "state"
+    
+    def translate_call(self, expr: Any) -> str:
+        """Translate function call.
+        
+        Args:
+            expr: ExprCall node
+            
+        Returns:
+            SMT2 function call
+        """
+        # TODO: Implement function call translation
+        return "true"  # Placeholder
+    
+    def translate_compare(self, expr: Any) -> str:
+        """Translate comparison expression.
+        
+        Args:
+            expr: ExprCompare node
+            
+        Returns:
+            SMT2 comparison expression
+        """
+        # TODO: Handle chained comparisons
+        # For now, simple two-operand comparison
+        return "true"  # Placeholder

@@ -4,6 +4,7 @@ Tests for Data Model to SMT translation.
 import pytest
 import sys
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
+sys.path.insert(0, 'packages/zuspec-be-fv/tests/unit')
 
 import zuspec.dataclasses as zdc
 from zuspec.be.fv.translator import DataModelTranslator, SMTProblem

@@ -1,16 +1,20 @@
-"""
-Solver abstraction layer for formal verification.
+"""Solver abstraction layer for formal verification.
 
-This module provides a pluggable interface for different SMT solvers.
+Note: the Python Z3 bindings are optional. Importing this package should not
+require Z3 unless you explicitly use the Z3 backend.
 """
 
 from .base import SolverBackend
 from .result import VerificationResult, SolverResult
-from .z3_solver import Z3Solver
+
+try:
+    from .z3_solver import Z3Solver  # type: ignore
+except Exception:  # pragma: no cover
+    Z3Solver = None  # type: ignore
 
 __all__ = [
     "SolverBackend",
-    "VerificationResult", 
+    "VerificationResult",
     "SolverResult",
     "Z3Solver",
 ]
