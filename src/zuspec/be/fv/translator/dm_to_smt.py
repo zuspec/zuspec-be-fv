@@ -8,9 +8,9 @@ import sys
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 
 try:
-    from zuspec.dataclasses import dm
+    from zuspec.dataclasses import ir
 except ImportError:
-    dm = None
+    ir = None
 
 from .type_translator import TypeTranslator
 
@@ -62,10 +62,10 @@ class DataModelTranslator:
         """
         problem = SMTProblem()
         
-        if dm is None:
+        if ir is None:
             raise ImportError("zuspec.dataclasses not available")
         
-        if not isinstance(struct_type, dm.DataTypeStruct):
+        if not isinstance(struct_type, ir.DataTypeStruct):
             raise TypeError(f"Expected DataTypeStruct, got {type(struct_type)}")
         
         # Get Python type - use provided or extract from struct_type
@@ -104,7 +104,7 @@ class DataModelTranslator:
             metadata = {}
         
         # Determine bit width and signedness
-        if isinstance(field_type, dm.DataTypeInt):
+        if isinstance(field_type, ir.DataTypeInt):
             width = abs(field_type.bits) if field_type.bits != -1 else 32
             is_signed = field_type.signed
             
@@ -130,7 +130,7 @@ class DataModelTranslator:
                     )
                     problem.add_constraint(constraint)
         
-        elif hasattr(dm, 'DataTypeStruct') and isinstance(field_type, dm.DataTypeStruct):
+        elif hasattr(ir, 'DataTypeStruct') and isinstance(field_type, ir.DataTypeStruct):
             # Handle nested structures
             nested_problem = self.translate_struct(field_type)
             
@@ -156,7 +156,7 @@ class DataModelTranslator:
         """
         bounds_map = {}
         
-        if dm is None or not isinstance(struct_type, dm.DataTypeStruct):
+        if ir is None or not isinstance(struct_type, ir.DataTypeStruct):
             return bounds_map
         
         # Get Python type if not provided

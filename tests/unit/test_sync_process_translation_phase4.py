@@ -4,40 +4,40 @@ import sys
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 sys.path.insert(0, 'packages/zuspec-be-fv/src')
 
-from zuspec.dataclasses import dm
+from zuspec.dataclasses import ir
 from zuspec.be.fv.rtl import RTLToSMT2Translator
 
 
 def test_translate_sync_process_adds_transition_and_register():
-    rst = dm.Field(
+    rst = ir.Field(
         name="rst",
-        datatype=dm.DataTypeInt(bits=1, signed=False),
-        direction=dm.SignalDirection.INPUT,
+        datatype=ir.DataTypeInt(bits=1, signed=False),
+        direction=ir.SignalDirection.INPUT,
     )
-    count = dm.Field(
+    count = ir.Field(
         name="count",
-        datatype=dm.DataTypeInt(bits=8, signed=False),
-        direction=dm.SignalDirection.OUTPUT,
+        datatype=ir.DataTypeInt(bits=8, signed=False),
+        direction=ir.SignalDirection.OUTPUT,
     )
 
-    count_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    rst_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=0)
+    count_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    rst_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=0)
 
-    update = dm.Function(
+    update = ir.Function(
         name="update",
         args=None,
         body=[
-            dm.StmtIf(
+            ir.StmtIf(
                 test=rst_ref,
-                body=[dm.StmtAssign(targets=[count_ref], value=dm.ExprConstant(value=0))],
-                orelse=[dm.StmtAssign(targets=[count_ref], value=dm.ExprConstant(value=1))],
+                body=[ir.StmtAssign(targets=[count_ref], value=ir.ExprConstant(value=0))],
+                orelse=[ir.StmtAssign(targets=[count_ref], value=ir.ExprConstant(value=1))],
             )
         ],
-        process_kind=dm.ProcessKind.SYNC,
+        process_kind=ir.ProcessKind.SYNC,
         sensitivity_list=[],
     )
 
-    comp = dm.DataTypeComponent(
+    comp = ir.DataTypeComponent(
         name="C",
         super=None,
         fields=[rst, count],

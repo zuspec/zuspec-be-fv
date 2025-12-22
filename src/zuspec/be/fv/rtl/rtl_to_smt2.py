@@ -10,9 +10,9 @@ import sys
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 
 try:
-    from zuspec.dataclasses import dm
+    from zuspec.dataclasses import ir
 except ImportError:
-    dm = None
+    ir = None
 
 from .smt2_module import SMT2Module, SMT2Signal, SMT2Function, SMT2Transition
 from .translation_context import TranslationContext
@@ -54,10 +54,10 @@ class RTLToSMT2Translator:
             TypeError: If comp is not a DataTypeComponent
             ImportError: If zuspec.dataclasses not available
         """
-        if dm is None:
+        if ir is None:
             raise ImportError("zuspec.dataclasses not available")
         
-        if not isinstance(comp, dm.DataTypeComponent):
+        if not isinstance(comp, ir.DataTypeComponent):
             raise TypeError(f"Expected DataTypeComponent, got {type(comp)}")
         
         # Create module
@@ -112,11 +112,11 @@ class RTLToSMT2Translator:
             is_register=False,
         )
 
-        if field.direction == dm.SignalDirection.INPUT:
+        if field.direction == ir.SignalDirection.INPUT:
             module.add_input(signal)
-        elif field.direction == dm.SignalDirection.OUTPUT:
+        elif field.direction == ir.SignalDirection.OUTPUT:
             module.add_output(signal)
-        elif field.direction == dm.SignalDirection.INOUT:
+        elif field.direction == ir.SignalDirection.INOUT:
             module.add_input(signal)
             module.add_output(signal)
         else:
@@ -126,7 +126,7 @@ class RTLToSMT2Translator:
 
     def _collect_field_ref_indices(self, expr: Any) -> Set[int]:
         """Collect self.field indices referenced by an expression."""
-        if dm is None:
+        if ir is None:
             return set()
 
         refs: Set[int] = set()
@@ -134,19 +134,19 @@ class RTLToSMT2Translator:
         def walk(e: Any):
             if e is None:
                 return
-            if isinstance(e, dm.ExprRefField) and isinstance(e.base, dm.TypeExprRefSelf):
+            if isinstance(e, ir.ExprRefField) and isinstance(e.base, ir.TypeExprRefSelf):
                 refs.add(e.index)
                 return
-            if isinstance(e, dm.ExprBin):
+            if isinstance(e, ir.ExprBin):
                 walk(e.lhs)
                 walk(e.rhs)
-            elif isinstance(e, dm.ExprUnary):
+            elif isinstance(e, ir.ExprUnary):
                 walk(e.operand)
-            elif isinstance(e, dm.ExprCompare):
+            elif isinstance(e, ir.ExprCompare):
                 walk(e.left)
                 for c in e.comparators:
                     walk(c)
-            elif isinstance(e, dm.ExprBool):
+            elif isinstance(e, ir.ExprBool):
                 for v in e.values:
                     walk(v)
 
@@ -177,12 +177,12 @@ class RTLToSMT2Translator:
         return_type = "Bool"
 
         if func.returns is not None:
-            if isinstance(func.returns, dm.DataTypeInt) and func.returns.bits != 1:
+            if isinstance(func.returns, ir.DataTypeInt) and func.returns.bits != 1:
                 return_type = f"(_ BitVec {func.returns.bits if func.returns.bits > 0 else 32})"
             else:
-                return_type = "Bool" if isinstance(func.returns, dm.DataTypeInt) and func.returns.bits == 1 else return_type
+                return_type = "Bool" if isinstance(func.returns, ir.DataTypeInt) and func.returns.bits == 1 else return_type
 
-        if len(func.body) == 1 and isinstance(func.body[0], dm.StmtReturn):
+        if len(func.body) == 1 and isinstance(func.body[0], ir.StmtReturn):
             ret = func.body[0]
             body_expr = self.expr_translator.translate(ret.value, ctx) if ret.value is not None else "true"
 
@@ -195,13 +195,13 @@ class RTLToSMT2Translator:
             )
             module.add_comb_function(smt_func)
 
-        elif len(func.body) == 1 and isinstance(func.body[0], dm.StmtAssign):
+        elif len(func.body) == 1 and isinstance(func.body[0], ir.StmtAssign):
             assign = func.body[0]
-            if len(assign.targets) != 1 or not isinstance(assign.targets[0], dm.ExprRefField):
+            if len(assign.targets) != 1 or not isinstance(assign.targets[0], ir.ExprRefField):
                 raise ValueError("Combinational assignment must be to a single field")
 
             target = assign.targets[0]
-            if not isinstance(target.base, dm.TypeExprRefSelf):
+            if not isinstance(target.base, ir.TypeExprRefSelf):
                 raise NotImplementedError("Hierarchical comb assignments not supported")
 
             body_expr = self.expr_translator.translate(assign.value, ctx)
@@ -253,16 +253,16 @@ class RTLToSMT2Translator:
         """Extract assertions/assumptions/cover statements and invariants."""
 
         def visit_stmt(stmt: Any, ctx: TranslationContext, guard: str = "true"):
-            if isinstance(stmt, dm.StmtAssert):
+            if isinstance(stmt, ir.StmtAssert):
                 a = self.expr_translator.translate(stmt.test, ctx)
                 module.add_assertion(a if guard == "true" else f"(=> {guard} {a})")
-            elif isinstance(stmt, dm.StmtAssume):
+            elif isinstance(stmt, ir.StmtAssume):
                 u = self.expr_translator.translate(stmt.test, ctx)
                 module.add_assumption(u if guard == "true" else f"(=> {guard} {u})")
-            elif isinstance(stmt, dm.StmtCover):
+            elif isinstance(stmt, ir.StmtCover):
                 c = self.expr_translator.translate(stmt.test, ctx)
                 module.add_coverage_goal(c if guard == "true" else f"(=> {guard} {c})")
-            elif isinstance(stmt, dm.StmtIf):
+            elif isinstance(stmt, ir.StmtIf):
                 cond = self.expr_translator.translate(stmt.test, ctx)
                 then_guard = cond if guard == "true" else f"(and {guard} {cond})"
                 else_guard = f"(not {cond})" if guard == "true" else f"(and {guard} (not {cond}))"
@@ -271,13 +271,13 @@ class RTLToSMT2Translator:
                 for s in stmt.orelse:
                     visit_stmt(s, ctx, else_guard)
 
-            elif isinstance(stmt, (dm.StmtFor, dm.StmtWhile)):
+            elif isinstance(stmt, (ir.StmtFor, ir.StmtWhile)):
                 for s in stmt.body:
                     visit_stmt(s, ctx, guard)
                 for s in stmt.orelse:
                     visit_stmt(s, ctx, guard)
 
-            elif isinstance(stmt, dm.StmtTry):
+            elif isinstance(stmt, ir.StmtTry):
                 for s in stmt.body:
                     visit_stmt(s, ctx, guard)
                 for h in stmt.handlers:
@@ -288,7 +288,7 @@ class RTLToSMT2Translator:
                 for s in stmt.finalbody:
                     visit_stmt(s, ctx, guard)
 
-            elif isinstance(stmt, dm.StmtWith):
+            elif isinstance(stmt, ir.StmtWith):
                 for s in stmt.body:
                     visit_stmt(s, ctx, guard)
 
@@ -302,7 +302,7 @@ class RTLToSMT2Translator:
         # Invariant functions
         for func in getattr(comp, 'functions', []):
             if getattr(func, 'is_invariant', False):
-                if len(func.body) == 1 and isinstance(func.body[0], dm.StmtReturn) and func.body[0].value is not None:
+                if len(func.body) == 1 and isinstance(func.body[0], ir.StmtReturn) and func.body[0].value is not None:
                     inv = self.expr_translator.translate(func.body[0].value, base_ctx)
                     module.add_assertion(inv)
 
@@ -335,7 +335,7 @@ class RTLToSMT2Translator:
         Returns:
             Tuple of (width, is_signed)
         """
-        if isinstance(datatype, dm.DataTypeInt):
+        if isinstance(datatype, ir.DataTypeInt):
             width = datatype.bits if datatype.bits > 0 else 32
             is_signed = datatype.signed
             return (width, is_signed)
@@ -421,9 +421,9 @@ class RTLToSMT2Translator:
         lines.append(f"(declare-fun |{module.name}#{sig.smt_name}| (|{module.state_sort}|) {smt_type}) ; {sig.name}")
         
         # Add metadata comments
-        if sig.direction == dm.SignalDirection.INPUT:
+        if sig.direction == ir.SignalDirection.INPUT:
             lines.append(f"; zuspec-smt2-input {sig.name} {sig.width}")
-        elif sig.direction == dm.SignalDirection.OUTPUT:
+        elif sig.direction == ir.SignalDirection.OUTPUT:
             lines.append(f"; zuspec-smt2-output {sig.name} {sig.width}")
         
         if sig.is_register:
@@ -447,7 +447,7 @@ class RTLToSMT2Translator:
         lines.append(f"  {sig.def_expr}")
         lines.append(")")
 
-        if sig.direction == dm.SignalDirection.OUTPUT:
+        if sig.direction == ir.SignalDirection.OUTPUT:
             lines.append(f"; zuspec-smt2-output {sig.name} {sig.width}")
         lines.append(f"; zuspec-smt2-wire {sig.name} {sig.width}")
         return lines

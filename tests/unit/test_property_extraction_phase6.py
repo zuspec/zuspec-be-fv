@@ -7,44 +7,44 @@ import sys
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 sys.path.insert(0, 'packages/zuspec-be-fv/src')
 
-from zuspec.dataclasses import dm
+from zuspec.dataclasses import ir
 from zuspec.be.fv.rtl import RTLToSMT2Translator
 
 
 def test_extract_assert_assume_cover_and_invariant():
-    clk = dm.Field(name="clk", datatype=dm.DataTypeInt(bits=1, signed=False), direction=dm.SignalDirection.INPUT)
-    rst = dm.Field(name="rst", datatype=dm.DataTypeInt(bits=1, signed=False), direction=dm.SignalDirection.INPUT)
-    count = dm.Field(name="count", datatype=dm.DataTypeInt(bits=8, signed=False), direction=dm.SignalDirection.OUTPUT,
-                     initial_value=dm.ExprConstant(value=0))
+    clk = ir.Field(name="clk", datatype=ir.DataTypeInt(bits=1, signed=False), direction=ir.SignalDirection.INPUT)
+    rst = ir.Field(name="rst", datatype=ir.DataTypeInt(bits=1, signed=False), direction=ir.SignalDirection.INPUT)
+    count = ir.Field(name="count", datatype=ir.DataTypeInt(bits=8, signed=False), direction=ir.SignalDirection.OUTPUT,
+                     initial_value=ir.ExprConstant(value=0))
 
-    rst_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    count_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=2)
+    rst_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    count_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=2)
 
-    update = dm.Function(
+    update = ir.Function(
         name="update",
         args=None,
         body=[
-            dm.StmtAssume(test=dm.ExprBin(lhs=count_ref, op=dm.BinOp.LtE, rhs=dm.ExprConstant(value=255))),
-            dm.StmtIf(
+            ir.StmtAssume(test=ir.ExprBin(lhs=count_ref, op=ir.BinOp.LtE, rhs=ir.ExprConstant(value=255))),
+            ir.StmtIf(
                 test=rst_ref,
-                body=[dm.StmtAssert(test=dm.ExprBin(lhs=count_ref, op=dm.BinOp.Eq, rhs=dm.ExprConstant(value=0)))],
+                body=[ir.StmtAssert(test=ir.ExprBin(lhs=count_ref, op=ir.BinOp.Eq, rhs=ir.ExprConstant(value=0)))],
                 orelse=[],
             ),
-            dm.StmtCover(test=dm.ExprBin(lhs=count_ref, op=dm.BinOp.Eq, rhs=dm.ExprConstant(value=10))),
-            dm.StmtAssign(targets=[count_ref], value=dm.ExprConstant(value=1)),
+            ir.StmtCover(test=ir.ExprBin(lhs=count_ref, op=ir.BinOp.Eq, rhs=ir.ExprConstant(value=10))),
+            ir.StmtAssign(targets=[count_ref], value=ir.ExprConstant(value=1)),
         ],
-        process_kind=dm.ProcessKind.SYNC,
+        process_kind=ir.ProcessKind.SYNC,
         sensitivity_list=[],
     )
 
-    inv = dm.Function(
+    inv = ir.Function(
         name="inv",
         args=None,
-        body=[dm.StmtReturn(value=dm.ExprBin(lhs=count_ref, op=dm.BinOp.LtE, rhs=dm.ExprConstant(value=255)))],
+        body=[ir.StmtReturn(value=ir.ExprBin(lhs=count_ref, op=ir.BinOp.LtE, rhs=ir.ExprConstant(value=255)))],
         is_invariant=True,
     )
 
-    comp = dm.DataTypeComponent(
+    comp = ir.DataTypeComponent(
         name="P",
         super=None,
         fields=[clk, rst, count],

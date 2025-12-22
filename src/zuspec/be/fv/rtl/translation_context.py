@@ -13,9 +13,9 @@ import sys
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 
 try:
-    from zuspec.dataclasses import dm
+    from zuspec.dataclasses import ir
 except ImportError:
-    dm = None
+    ir = None
 
 from .smt2_module import SMT2Module
 
@@ -35,7 +35,7 @@ class TranslationContext:
         next_state_var: Name of next state variable (for transitions)
     """
     
-    component: Any  # dm.DataTypeComponent
+    component: Any  # ir.DataTypeComponent
     module: SMT2Module
     field_map: Dict[int, str] = dc_field(default_factory=dict)
     local_vars: Dict[str, str] = dc_field(default_factory=dict)
@@ -90,7 +90,7 @@ class TranslationContext:
         if expr_id in self.type_cache:
             return self.type_cache[expr_id]
         
-        if dm is None:
+        if ir is None:
             raise ImportError("zuspec.dataclasses not available")
         
         # Infer based on expression type
@@ -104,47 +104,47 @@ class TranslationContext:
     def _infer_type_impl(self, expr: Any) -> Any:
         """Implementation of type inference."""
         
-        if isinstance(expr, dm.ExprConstant):
+        if isinstance(expr, ir.ExprConstant):
             # Infer from constant value
             value = expr.value
             if isinstance(value, bool):
-                return dm.DataTypeInt(bits=1, signed=False)
+                return ir.DataTypeInt(bits=1, signed=False)
             elif isinstance(value, int):
                 # Minimum width to represent value
                 if value == 0:
-                    return dm.DataTypeInt(bits=1, signed=False)
+                    return ir.DataTypeInt(bits=1, signed=False)
                 elif value > 0:
                     width = value.bit_length()
-                    return dm.DataTypeInt(bits=width, signed=False)
+                    return ir.DataTypeInt(bits=width, signed=False)
                 else:
                     # Negative - needs sign bit
                     width = (abs(value) - 1).bit_length() + 1
-                    return dm.DataTypeInt(bits=width, signed=True)
+                    return ir.DataTypeInt(bits=width, signed=True)
             else:
                 # Default for unknown types
-                return dm.DataTypeInt(bits=32, signed=False)
+                return ir.DataTypeInt(bits=32, signed=False)
         
-        elif isinstance(expr, dm.ExprRefField):
+        elif isinstance(expr, ir.ExprRefField):
             # Get type from field definition
             field = self.get_field_by_index(expr.index)
             return field.datatype
         
-        elif isinstance(expr, dm.ExprRefLocal):
+        elif isinstance(expr, ir.ExprRefLocal):
             # Would need to track local variable types
             # For now, return default
-            return dm.DataTypeInt(bits=32, signed=False)
+            return ir.DataTypeInt(bits=32, signed=False)
         
-        elif isinstance(expr, dm.ExprRefParam):
+        elif isinstance(expr, ir.ExprRefParam):
             # Would need parameter type info
-            return dm.DataTypeInt(bits=32, signed=False)
+            return ir.DataTypeInt(bits=32, signed=False)
         
-        elif isinstance(expr, dm.ExprBin):
+        elif isinstance(expr, ir.ExprBin):
             # Infer from operands
             lhs_type = self.infer_type(expr.lhs)
             rhs_type = self.infer_type(expr.rhs)
             
             # For arithmetic, take wider type
-            if isinstance(lhs_type, dm.DataTypeInt) and isinstance(rhs_type, dm.DataTypeInt):
+            if isinstance(lhs_type, ir.DataTypeInt) and isinstance(rhs_type, ir.DataTypeInt):
                 lhs_width = lhs_type.bits if lhs_type.bits > 0 else 32
                 rhs_width = rhs_type.bits if rhs_type.bits > 0 else 32
                 max_width = max(lhs_width, rhs_width)
@@ -153,30 +153,30 @@ class TranslationContext:
                 is_signed = lhs_type.signed or rhs_type.signed
                 
                 # For comparisons, result is boolean
-                if expr.op in [dm.BinOp.Eq, dm.BinOp.NotEq, dm.BinOp.Lt, 
-                              dm.BinOp.LtE, dm.BinOp.Gt, dm.BinOp.GtE]:
-                    return dm.DataTypeInt(bits=1, signed=False)
+                if expr.op in [ir.BinOp.Eq, ir.BinOp.NotEq, ir.BinOp.Lt, 
+                              ir.BinOp.LtE, ir.BinOp.Gt, ir.BinOp.GtE]:
+                    return ir.DataTypeInt(bits=1, signed=False)
                 
-                return dm.DataTypeInt(bits=max_width, signed=is_signed)
+                return ir.DataTypeInt(bits=max_width, signed=is_signed)
             else:
                 # Default
-                return dm.DataTypeInt(bits=32, signed=False)
+                return ir.DataTypeInt(bits=32, signed=False)
         
-        elif isinstance(expr, dm.ExprUnary):
+        elif isinstance(expr, ir.ExprUnary):
             # Same type as operand
             return self.infer_type(expr.operand)
         
-        elif isinstance(expr, dm.ExprCompare):
+        elif isinstance(expr, ir.ExprCompare):
             # Comparison result is boolean
-            return dm.DataTypeInt(bits=1, signed=False)
+            return ir.DataTypeInt(bits=1, signed=False)
         
-        elif isinstance(expr, dm.ExprBool):
+        elif isinstance(expr, ir.ExprBool):
             # Boolean operations return boolean
-            return dm.DataTypeInt(bits=1, signed=False)
+            return ir.DataTypeInt(bits=1, signed=False)
         
         else:
             # Unknown - default
-            return dm.DataTypeInt(bits=32, signed=False)
+            return ir.DataTypeInt(bits=32, signed=False)
     
     def get_bit_width(self, expr: Any) -> int:
         """Get bit width of expression.
@@ -188,7 +188,7 @@ class TranslationContext:
             Bit width as integer
         """
         dtype = self.infer_type(expr)
-        if isinstance(dtype, dm.DataTypeInt):
+        if isinstance(dtype, ir.DataTypeInt):
             return dtype.bits if dtype.bits > 0 else 32
         return 1  # Boolean default
     
@@ -202,7 +202,7 @@ class TranslationContext:
             True if signed, False otherwise
         """
         dtype = self.infer_type(expr)
-        if isinstance(dtype, dm.DataTypeInt):
+        if isinstance(dtype, ir.DataTypeInt):
             return dtype.signed
         return False
     

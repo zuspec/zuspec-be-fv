@@ -9,9 +9,9 @@ import time
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 
 try:
-    from zuspec.dataclasses import dm, data_model_factory
+    from zuspec.dataclasses import ir, data_model_factory
 except ImportError:
-    dm = None
+    ir = None
     data_model_factory = None
 
 from .solver.result import VerificationResult, SolverResult
@@ -48,7 +48,7 @@ def check_bounds(dtype: Type,
         >>> if not result.holds:
         ...     print(f"Violation: {result.counterexample}")
     """
-    if dm is None or data_model_factory is None:
+    if ir is None or data_model_factory is None:
         raise ImportError("zuspec.dataclasses not available")
     
     start_time = time.time()
@@ -184,7 +184,7 @@ def check_no_overflow(dtype: Type,
         >>> if not result.holds:
         ...     print(f"Overflow possible: {result.counterexample}")
     """
-    if dm is None or data_model_factory is None:
+    if ir is None or data_model_factory is None:
         raise ImportError("zuspec.dataclasses not available")
     
     if len(fields) != 2:
@@ -233,7 +233,7 @@ def find_bounds_violation(dtype: Type,
         >>> if not result.holds:
         ...     print(f"Violation at: {result.counterexample}")
     """
-    if dm is None or data_model_factory is None:
+    if ir is None or data_model_factory is None:
         raise ImportError("zuspec.dataclasses not available")
     
     # Get data model from the Python class

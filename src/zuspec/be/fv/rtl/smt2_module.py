@@ -11,9 +11,9 @@ import sys
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 
 try:
-    from zuspec.dataclasses import dm
+    from zuspec.dataclasses import ir
 except ImportError:
-    dm = None
+    ir = None
 
 
 @dataclass
@@ -28,8 +28,8 @@ class SMT2Signal:
 
     name: str
     smt_name: str
-    datatype: Any  # dm.DataType
-    direction: Optional[Any] = None  # dm.SignalDirection
+    datatype: Any  # ir.DataType
+    direction: Optional[Any] = None  # ir.SignalDirection
     width: int = 1
     is_signed: bool = False
     initial_value: Optional[str] = None

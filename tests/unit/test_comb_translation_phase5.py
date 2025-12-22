@@ -9,28 +9,28 @@ import sys
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 sys.path.insert(0, 'packages/zuspec-be-fv/src')
 
-from zuspec.dataclasses import dm
+from zuspec.dataclasses import ir
 from zuspec.be.fv.rtl import RTLToSMT2Translator
 
 
 def test_comb_assign_defines_output_signal():
-    a = dm.Field(name="a", datatype=dm.DataTypeInt(bits=8, signed=False), direction=dm.SignalDirection.INPUT)
-    b = dm.Field(name="b", datatype=dm.DataTypeInt(bits=8, signed=False), direction=dm.SignalDirection.INPUT)
-    s = dm.Field(name="sum", datatype=dm.DataTypeInt(bits=8, signed=False), direction=dm.SignalDirection.OUTPUT)
+    a = ir.Field(name="a", datatype=ir.DataTypeInt(bits=8, signed=False), direction=ir.SignalDirection.INPUT)
+    b = ir.Field(name="b", datatype=ir.DataTypeInt(bits=8, signed=False), direction=ir.SignalDirection.INPUT)
+    s = ir.Field(name="sum", datatype=ir.DataTypeInt(bits=8, signed=False), direction=ir.SignalDirection.OUTPUT)
 
-    sum_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=2)
-    a_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=0)
-    b_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
+    sum_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=2)
+    a_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=0)
+    b_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
 
-    comb = dm.Function(
+    comb = ir.Function(
         name="compute",
         args=None,
-        body=[dm.StmtAssign(targets=[sum_ref], value=dm.ExprBin(lhs=a_ref, op=dm.BinOp.Add, rhs=b_ref))],
-        process_kind=dm.ProcessKind.COMB,
+        body=[ir.StmtAssign(targets=[sum_ref], value=ir.ExprBin(lhs=a_ref, op=ir.BinOp.Add, rhs=b_ref))],
+        process_kind=ir.ProcessKind.COMB,
         sensitivity_list=[],
     )
 
-    comp = dm.DataTypeComponent(
+    comp = ir.DataTypeComponent(
         name="Adder",
         super=None,
         fields=[a, b, s],
@@ -50,31 +50,31 @@ def test_comb_assign_defines_output_signal():
 
 
 def test_comb_defined_signal_dependency_ordering():
-    a = dm.Field(name="a", datatype=dm.DataTypeInt(bits=8, signed=False), direction=dm.SignalDirection.INPUT)
-    w = dm.Field(name="w", datatype=dm.DataTypeInt(bits=8, signed=False), direction=None)
-    y = dm.Field(name="y", datatype=dm.DataTypeInt(bits=8, signed=False), direction=dm.SignalDirection.OUTPUT)
+    a = ir.Field(name="a", datatype=ir.DataTypeInt(bits=8, signed=False), direction=ir.SignalDirection.INPUT)
+    w = ir.Field(name="w", datatype=ir.DataTypeInt(bits=8, signed=False), direction=None)
+    y = ir.Field(name="y", datatype=ir.DataTypeInt(bits=8, signed=False), direction=ir.SignalDirection.OUTPUT)
 
-    w_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    y_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=2)
-    a_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=0)
+    w_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    y_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=2)
+    a_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=0)
 
-    comb_w = dm.Function(
+    comb_w = ir.Function(
         name="comb_w",
         args=None,
-        body=[dm.StmtAssign(targets=[w_ref], value=dm.ExprBin(lhs=a_ref, op=dm.BinOp.Add, rhs=dm.ExprConstant(value=1)))],
-        process_kind=dm.ProcessKind.COMB,
+        body=[ir.StmtAssign(targets=[w_ref], value=ir.ExprBin(lhs=a_ref, op=ir.BinOp.Add, rhs=ir.ExprConstant(value=1)))],
+        process_kind=ir.ProcessKind.COMB,
         sensitivity_list=[],
     )
 
-    comb_y = dm.Function(
+    comb_y = ir.Function(
         name="comb_y",
         args=None,
-        body=[dm.StmtAssign(targets=[y_ref], value=dm.ExprBin(lhs=w_ref, op=dm.BinOp.Add, rhs=dm.ExprConstant(value=1)))],
-        process_kind=dm.ProcessKind.COMB,
+        body=[ir.StmtAssign(targets=[y_ref], value=ir.ExprBin(lhs=w_ref, op=ir.BinOp.Add, rhs=ir.ExprConstant(value=1)))],
+        process_kind=ir.ProcessKind.COMB,
         sensitivity_list=[],
     )
 
-    comp = dm.DataTypeComponent(
+    comp = ir.DataTypeComponent(
         name="Dep",
         super=None,
         fields=[a, w, y],
@@ -100,31 +100,31 @@ def test_comb_defined_signal_dependency_ordering():
 
 
 def test_comb_definition_cycle_detected():
-    a = dm.Field(name="a", datatype=dm.DataTypeInt(bits=8, signed=False), direction=dm.SignalDirection.INPUT)
-    w1 = dm.Field(name="w1", datatype=dm.DataTypeInt(bits=8, signed=False), direction=None)
-    w2 = dm.Field(name="w2", datatype=dm.DataTypeInt(bits=8, signed=False), direction=None)
+    a = ir.Field(name="a", datatype=ir.DataTypeInt(bits=8, signed=False), direction=ir.SignalDirection.INPUT)
+    w1 = ir.Field(name="w1", datatype=ir.DataTypeInt(bits=8, signed=False), direction=None)
+    w2 = ir.Field(name="w2", datatype=ir.DataTypeInt(bits=8, signed=False), direction=None)
 
-    a_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=0)
-    w1_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    w2_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=2)
+    a_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=0)
+    w1_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    w2_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=2)
 
-    comb_w1 = dm.Function(
+    comb_w1 = ir.Function(
         name="comb_w1",
         args=None,
-        body=[dm.StmtAssign(targets=[w1_ref], value=dm.ExprBin(lhs=w2_ref, op=dm.BinOp.Add, rhs=a_ref))],
-        process_kind=dm.ProcessKind.COMB,
+        body=[ir.StmtAssign(targets=[w1_ref], value=ir.ExprBin(lhs=w2_ref, op=ir.BinOp.Add, rhs=a_ref))],
+        process_kind=ir.ProcessKind.COMB,
         sensitivity_list=[],
     )
 
-    comb_w2 = dm.Function(
+    comb_w2 = ir.Function(
         name="comb_w2",
         args=None,
-        body=[dm.StmtAssign(targets=[w2_ref], value=dm.ExprBin(lhs=w1_ref, op=dm.BinOp.Add, rhs=a_ref))],
-        process_kind=dm.ProcessKind.COMB,
+        body=[ir.StmtAssign(targets=[w2_ref], value=ir.ExprBin(lhs=w1_ref, op=ir.BinOp.Add, rhs=a_ref))],
+        process_kind=ir.ProcessKind.COMB,
         sensitivity_list=[],
     )
 
-    comp = dm.DataTypeComponent(
+    comp = ir.DataTypeComponent(
         name="Cycle",
         super=None,
         fields=[a, w1, w2],
@@ -144,29 +144,29 @@ def test_comb_definition_cycle_detected():
 
 
 def test_comb_and_sync_drive_same_signal_error():
-    rst = dm.Field(name="rst", datatype=dm.DataTypeInt(bits=1, signed=False), direction=dm.SignalDirection.INPUT)
-    y = dm.Field(name="y", datatype=dm.DataTypeInt(bits=8, signed=False), direction=dm.SignalDirection.OUTPUT)
+    rst = ir.Field(name="rst", datatype=ir.DataTypeInt(bits=1, signed=False), direction=ir.SignalDirection.INPUT)
+    y = ir.Field(name="y", datatype=ir.DataTypeInt(bits=8, signed=False), direction=ir.SignalDirection.OUTPUT)
 
-    rst_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=0)
-    y_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
+    rst_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=0)
+    y_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
 
-    comb = dm.Function(
+    comb = ir.Function(
         name="comb",
         args=None,
-        body=[dm.StmtAssign(targets=[y_ref], value=dm.ExprConstant(value=1))],
-        process_kind=dm.ProcessKind.COMB,
+        body=[ir.StmtAssign(targets=[y_ref], value=ir.ExprConstant(value=1))],
+        process_kind=ir.ProcessKind.COMB,
         sensitivity_list=[],
     )
 
-    sync = dm.Function(
+    sync = ir.Function(
         name="sync",
         args=None,
-        body=[dm.StmtIf(test=rst_ref, body=[dm.StmtAssign(targets=[y_ref], value=dm.ExprConstant(value=0))], orelse=[])],
-        process_kind=dm.ProcessKind.SYNC,
+        body=[ir.StmtIf(test=rst_ref, body=[ir.StmtAssign(targets=[y_ref], value=ir.ExprConstant(value=0))], orelse=[])],
+        process_kind=ir.ProcessKind.SYNC,
         sensitivity_list=[],
     )
 
-    comp = dm.DataTypeComponent(
+    comp = ir.DataTypeComponent(
         name="Mix",
         super=None,
         fields=[rst, y],

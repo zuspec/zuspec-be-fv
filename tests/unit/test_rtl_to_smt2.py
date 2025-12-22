@@ -7,7 +7,7 @@ sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 sys.path.insert(0, 'packages/zuspec-be-fv/src')
 
 import pytest
-from zuspec.dataclasses import dm
+from zuspec.dataclasses import ir
 from zuspec.be.fv.rtl import RTLToSMT2Translator, SMT2Module, SMT2Signal
 
 
@@ -27,8 +27,8 @@ def test_smt2_signal_creation():
     sig = SMT2Signal(
         name="clk",
         smt_name="clk#1",
-        datatype=dm.DataTypeInt(bits=1, signed=False),
-        direction=dm.SignalDirection.INPUT,
+        datatype=ir.DataTypeInt(bits=1, signed=False),
+        direction=ir.SignalDirection.INPUT,
         width=1,
         is_signed=False
     )
@@ -37,7 +37,7 @@ def test_smt2_signal_creation():
     assert sig.smt_name == "clk#1"
     assert sig.width == 1
     assert not sig.is_signed
-    assert sig.direction == dm.SignalDirection.INPUT
+    assert sig.direction == ir.SignalDirection.INPUT
 
 
 def test_smt2_module_add_signals():
@@ -47,8 +47,8 @@ def test_smt2_module_add_signals():
     clk_sig = SMT2Signal(
         name="clk",
         smt_name="clk#1",
-        datatype=dm.DataTypeInt(bits=1, signed=False),
-        direction=dm.SignalDirection.INPUT,
+        datatype=ir.DataTypeInt(bits=1, signed=False),
+        direction=ir.SignalDirection.INPUT,
         width=1,
         is_signed=False
     )
@@ -56,8 +56,8 @@ def test_smt2_module_add_signals():
     count_sig = SMT2Signal(
         name="count",
         smt_name="count#2",
-        datatype=dm.DataTypeInt(bits=8, signed=False),
-        direction=dm.SignalDirection.OUTPUT,
+        datatype=ir.DataTypeInt(bits=8, signed=False),
+        direction=ir.SignalDirection.OUTPUT,
         width=8,
         is_signed=False
     )
@@ -85,7 +85,7 @@ def test_translate_empty_component():
     translator = RTLToSMT2Translator()
     
     # Create minimal component
-    comp = dm.DataTypeComponent(
+    comp = ir.DataTypeComponent(
         name="empty_component",
         super=None,
         fields=[],
@@ -105,13 +105,13 @@ def test_translate_component_with_input():
     translator = RTLToSMT2Translator()
     
     # Create component with input field
-    clk_field = dm.Field(
+    clk_field = ir.Field(
         name="clk",
-        datatype=dm.DataTypeInt(bits=1, signed=False),
-        direction=dm.SignalDirection.INPUT
+        datatype=ir.DataTypeInt(bits=1, signed=False),
+        direction=ir.SignalDirection.INPUT
     )
     
-    comp = dm.DataTypeComponent(
+    comp = ir.DataTypeComponent(
         name="simple",
         super=None,
         fields=[clk_field],
@@ -132,13 +132,13 @@ def test_translate_component_with_output():
     translator = RTLToSMT2Translator()
     
     # Create component with output field
-    out_field = dm.Field(
+    out_field = ir.Field(
         name="result",
-        datatype=dm.DataTypeInt(bits=8, signed=False),
-        direction=dm.SignalDirection.OUTPUT
+        datatype=ir.DataTypeInt(bits=8, signed=False),
+        direction=ir.SignalDirection.OUTPUT
     )
     
-    comp = dm.DataTypeComponent(
+    comp = ir.DataTypeComponent(
         name="simple",
         super=None,
         fields=[out_field],
@@ -180,8 +180,8 @@ def test_generate_smt2_with_input():
     clk_sig = SMT2Signal(
         name="clk",
         smt_name="clk_1",
-        datatype=dm.DataTypeInt(bits=1, signed=False),
-        direction=dm.SignalDirection.INPUT,
+        datatype=ir.DataTypeInt(bits=1, signed=False),
+        direction=ir.SignalDirection.INPUT,
         width=1,
         is_signed=False
     )
@@ -201,8 +201,8 @@ def test_generate_smt2_with_bitvector():
     data_sig = SMT2Signal(
         name="data",
         smt_name="data_1",
-        datatype=dm.DataTypeInt(bits=32, signed=False),
-        direction=dm.SignalDirection.INPUT,
+        datatype=ir.DataTypeInt(bits=32, signed=False),
+        direction=ir.SignalDirection.INPUT,
         width=32,
         is_signed=False
     )
@@ -219,19 +219,19 @@ def test_get_type_info():
     translator = RTLToSMT2Translator()
     
     # Test integer type
-    int_type = dm.DataTypeInt(bits=16, signed=True)
+    int_type = ir.DataTypeInt(bits=16, signed=True)
     width, is_signed = translator._get_type_info(int_type)
     assert width == 16
     assert is_signed
     
     # Test unsigned
-    uint_type = dm.DataTypeInt(bits=8, signed=False)
+    uint_type = ir.DataTypeInt(bits=8, signed=False)
     width, is_signed = translator._get_type_info(uint_type)
     assert width == 8
     assert not is_signed
     
     # Test default width
-    default_type = dm.DataTypeInt(bits=-1, signed=False)
+    default_type = ir.DataTypeInt(bits=-1, signed=False)
     width, is_signed = translator._get_type_info(default_type)
     assert width == 32  # Default width
 

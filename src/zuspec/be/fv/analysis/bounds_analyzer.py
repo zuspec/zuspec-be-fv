@@ -7,9 +7,9 @@ import time
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 
 try:
-    from zuspec.dataclasses import dm
+    from zuspec.dataclasses import ir
 except ImportError:
-    dm = None
+    ir = None
 
 from ..solver.z3_solver import Z3Solver
 from ..solver.result import VerificationResult, SolverResult

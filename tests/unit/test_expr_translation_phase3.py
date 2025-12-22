@@ -14,7 +14,7 @@ sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 sys.path.insert(0, 'packages/zuspec-be-fv/src')
 
 import pytest
-from zuspec.dataclasses import dm
+from zuspec.dataclasses import ir
 from zuspec.be.fv.rtl import (
     TranslationContext, ExprToSMT2Translator, SMT2Module, SMT2Signal
 )
@@ -23,25 +23,25 @@ from zuspec.be.fv.rtl import (
 @pytest.fixture
 def simple_component():
     """Create a simple component for testing."""
-    clk_field = dm.Field(
+    clk_field = ir.Field(
         name="clk",
-        datatype=dm.DataTypeInt(bits=1, signed=False),
-        direction=dm.SignalDirection.INPUT
+        datatype=ir.DataTypeInt(bits=1, signed=False),
+        direction=ir.SignalDirection.INPUT
     )
     
-    count_field = dm.Field(
+    count_field = ir.Field(
         name="count",
-        datatype=dm.DataTypeInt(bits=8, signed=False),
-        direction=dm.SignalDirection.OUTPUT
+        datatype=ir.DataTypeInt(bits=8, signed=False),
+        direction=ir.SignalDirection.OUTPUT
     )
     
-    increment_field = dm.Field(
+    increment_field = ir.Field(
         name="increment",
-        datatype=dm.DataTypeInt(bits=4, signed=False),
-        direction=dm.SignalDirection.INPUT
+        datatype=ir.DataTypeInt(bits=4, signed=False),
+        direction=ir.SignalDirection.INPUT
     )
     
-    comp = dm.DataTypeComponent(
+    comp = ir.DataTypeComponent(
         name="TestCounter",
         super=None,
         fields=[clk_field, count_field, increment_field],
@@ -97,35 +97,35 @@ def test_context_get_field_smt_name(context):
 def test_context_infer_constant_type(context):
     """Test type inference for constants."""
     # Boolean
-    bool_expr = dm.ExprConstant(value=True)
+    bool_expr = ir.ExprConstant(value=True)
     bool_type = context.infer_type(bool_expr)
-    assert isinstance(bool_type, dm.DataTypeInt)
+    assert isinstance(bool_type, ir.DataTypeInt)
     assert bool_type.bits == 1
     assert not bool_type.signed
     
     # Positive integer
-    int_expr = dm.ExprConstant(value=10)
+    int_expr = ir.ExprConstant(value=10)
     int_type = context.infer_type(int_expr)
-    assert isinstance(int_type, dm.DataTypeInt)
+    assert isinstance(int_type, ir.DataTypeInt)
     assert int_type.bits == 4  # 10 requires 4 bits
     
     # Negative integer
-    neg_expr = dm.ExprConstant(value=-5)
+    neg_expr = ir.ExprConstant(value=-5)
     neg_type = context.infer_type(neg_expr)
-    assert isinstance(neg_type, dm.DataTypeInt)
+    assert isinstance(neg_type, ir.DataTypeInt)
     assert neg_type.signed
 
 
 def test_context_infer_field_type(context):
     """Test type inference for field references."""
     # Reference to count field (8-bit unsigned)
-    field_ref = dm.ExprRefField(
-        base=dm.TypeExprRefSelf(),
+    field_ref = ir.ExprRefField(
+        base=ir.TypeExprRefSelf(),
         index=1
     )
     
     field_type = context.infer_type(field_ref)
-    assert isinstance(field_type, dm.DataTypeInt)
+    assert isinstance(field_type, ir.DataTypeInt)
     assert field_type.bits == 8
     assert not field_type.signed
 
@@ -133,26 +133,26 @@ def test_context_infer_field_type(context):
 def test_context_get_bit_width(context):
     """Test getting bit width from expressions."""
     # 8-bit field
-    field_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
+    field_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
     assert context.get_bit_width(field_ref) == 8
     
     # 4-bit field
-    inc_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=2)
+    inc_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=2)
     assert context.get_bit_width(inc_ref) == 4
     
     # Constant
-    const = dm.ExprConstant(value=255)
+    const = ir.ExprConstant(value=255)
     assert context.get_bit_width(const) == 8  # 255 requires 8 bits
 
 
 def test_context_is_signed_type(context):
     """Test checking if type is signed."""
     # Unsigned field
-    field_ref = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
+    field_ref = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
     assert not context.is_signed_type(field_ref)
     
     # Negative constant (inferred as signed)
-    neg_const = dm.ExprConstant(value=-1)
+    neg_const = ir.ExprConstant(value=-1)
     assert context.is_signed_type(neg_const)
 
 
@@ -160,10 +160,10 @@ def test_expr_translator_constant_bool(context):
     """Test translating boolean constants."""
     translator = ExprToSMT2Translator()
     
-    true_expr = dm.ExprConstant(value=True)
+    true_expr = ir.ExprConstant(value=True)
     assert translator.translate(true_expr, context) == "true"
     
-    false_expr = dm.ExprConstant(value=False)
+    false_expr = ir.ExprConstant(value=False)
     assert translator.translate(false_expr, context) == "false"
 
 
@@ -172,13 +172,13 @@ def test_expr_translator_constant_int(context):
     translator = ExprToSMT2Translator()
     
     # Small positive constant
-    expr = dm.ExprConstant(value=10)
+    expr = ir.ExprConstant(value=10)
     result = translator.translate(expr, context)
     assert result.startswith("#b")
     assert result == "#b1010"  # 10 in binary, 4 bits
     
     # Zero
-    zero_expr = dm.ExprConstant(value=0)
+    zero_expr = ir.ExprConstant(value=0)
     result = translator.translate(zero_expr, context)
     assert result == "#b0"
 
@@ -188,8 +188,8 @@ def test_expr_translator_field_reference(context):
     translator = ExprToSMT2Translator()
     
     # Reference to count field
-    field_ref = dm.ExprRefField(
-        base=dm.TypeExprRefSelf(),
+    field_ref = ir.ExprRefField(
+        base=ir.TypeExprRefSelf(),
         index=1
     )
     
@@ -202,9 +202,9 @@ def test_expr_translator_binary_add_same_width(context):
     translator = ExprToSMT2Translator()
     
     # count (8-bit) + 1 (will be 8-bit)
-    lhs = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    rhs = dm.ExprConstant(value=1)
-    expr = dm.ExprBin(lhs=lhs, op=dm.BinOp.Add, rhs=rhs)
+    lhs = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    rhs = ir.ExprConstant(value=1)
+    expr = ir.ExprBin(lhs=lhs, op=ir.BinOp.Add, rhs=rhs)
     
     result = translator.translate(expr, context)
     assert "bvadd" in result
@@ -216,9 +216,9 @@ def test_expr_translator_binary_add_different_width(context):
     translator = ExprToSMT2Translator()
     
     # count (8-bit) + increment (4-bit)
-    lhs = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)  # count, 8-bit
-    rhs = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=2)  # increment, 4-bit
-    expr = dm.ExprBin(lhs=lhs, op=dm.BinOp.Add, rhs=rhs)
+    lhs = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)  # count, 8-bit
+    rhs = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=2)  # increment, 4-bit
+    expr = ir.ExprBin(lhs=lhs, op=ir.BinOp.Add, rhs=rhs)
     
     result = translator.translate(expr, context)
     assert "bvadd" in result
@@ -230,9 +230,9 @@ def test_expr_translator_comparison_unsigned(context):
     translator = ExprToSMT2Translator()
     
     # count < 255
-    lhs = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    rhs = dm.ExprConstant(value=255)
-    expr = dm.ExprBin(lhs=lhs, op=dm.BinOp.Lt, rhs=rhs)
+    lhs = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    rhs = ir.ExprConstant(value=255)
+    expr = ir.ExprBin(lhs=lhs, op=ir.BinOp.Lt, rhs=rhs)
     
     result = translator.translate(expr, context)
     assert "bvult" in result  # Unsigned less than
@@ -241,13 +241,13 @@ def test_expr_translator_comparison_unsigned(context):
 def test_expr_translator_comparison_signed():
     """Test signed comparison."""
     # Create component with signed field
-    signed_field = dm.Field(
+    signed_field = ir.Field(
         name="signed_val",
-        datatype=dm.DataTypeInt(bits=8, signed=True),
-        direction=dm.SignalDirection.OUTPUT
+        datatype=ir.DataTypeInt(bits=8, signed=True),
+        direction=ir.SignalDirection.OUTPUT
     )
     
-    comp = dm.DataTypeComponent(
+    comp = ir.DataTypeComponent(
         name="Test",
         super=None,
         fields=[signed_field],
@@ -266,9 +266,9 @@ def test_expr_translator_comparison_signed():
     translator = ExprToSMT2Translator()
     
     # signed_val < 0
-    lhs = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=0)
-    rhs = dm.ExprConstant(value=0)
-    expr = dm.ExprBin(lhs=lhs, op=dm.BinOp.Lt, rhs=rhs)
+    lhs = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=0)
+    rhs = ir.ExprConstant(value=0)
+    expr = ir.ExprBin(lhs=lhs, op=ir.BinOp.Lt, rhs=rhs)
     
     result = translator.translate(expr, ctx)
     assert "bvslt" in result  # Signed less than
@@ -279,9 +279,9 @@ def test_expr_translator_bitwise_and(context):
     translator = ExprToSMT2Translator()
     
     # count & 0x0F
-    lhs = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    rhs = dm.ExprConstant(value=0x0F)
-    expr = dm.ExprBin(lhs=lhs, op=dm.BinOp.BitAnd, rhs=rhs)
+    lhs = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    rhs = ir.ExprConstant(value=0x0F)
+    expr = ir.ExprBin(lhs=lhs, op=ir.BinOp.BitAnd, rhs=rhs)
     
     result = translator.translate(expr, context)
     assert "bvand" in result
@@ -292,9 +292,9 @@ def test_expr_translator_shift_left(context):
     translator = ExprToSMT2Translator()
     
     # count << 2
-    lhs = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    rhs = dm.ExprConstant(value=2)
-    expr = dm.ExprBin(lhs=lhs, op=dm.BinOp.LShift, rhs=rhs)
+    lhs = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    rhs = ir.ExprConstant(value=2)
+    expr = ir.ExprBin(lhs=lhs, op=ir.BinOp.LShift, rhs=rhs)
     
     result = translator.translate(expr, context)
     assert "bvshl" in result
@@ -305,8 +305,8 @@ def test_expr_translator_unary_not(context):
     translator = ExprToSMT2Translator()
     
     # ~count
-    operand = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    expr = dm.ExprUnary(op=dm.UnaryOp.Invert, operand=operand)
+    operand = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    expr = ir.ExprUnary(op=ir.UnaryOp.Invert, operand=operand)
     
     result = translator.translate(expr, context)
     assert "bvnot" in result
@@ -317,8 +317,8 @@ def test_expr_translator_unary_negate(context):
     translator = ExprToSMT2Translator()
     
     # -count
-    operand = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    expr = dm.ExprUnary(op=dm.UnaryOp.USub, operand=operand)
+    operand = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    expr = ir.ExprUnary(op=ir.UnaryOp.USub, operand=operand)
     
     result = translator.translate(expr, context)
     assert "bvneg" in result
@@ -329,11 +329,11 @@ def test_expr_translator_compare_simple(context):
     translator = ExprToSMT2Translator()
     
     # count == 255
-    left = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    comparator = dm.ExprConstant(value=255)
-    expr = dm.ExprCompare(
+    left = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    comparator = ir.ExprConstant(value=255)
+    expr = ir.ExprCompare(
         left=left,
-        ops=[dm.CmpOp.Eq],
+        ops=[ir.CmpOp.Eq],
         comparators=[comparator]
     )
     
@@ -346,13 +346,13 @@ def test_expr_translator_compare_chained(context):
     translator = ExprToSMT2Translator()
     
     # 0 <= count <= 255
-    left = dm.ExprConstant(value=0)
-    count = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    right = dm.ExprConstant(value=255)
+    left = ir.ExprConstant(value=0)
+    count = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    right = ir.ExprConstant(value=255)
     
-    expr = dm.ExprCompare(
+    expr = ir.ExprCompare(
         left=left,
-        ops=[dm.CmpOp.LtE, dm.CmpOp.LtE],
+        ops=[ir.CmpOp.LtE, ir.CmpOp.LtE],
         comparators=[count, right]
     )
     
@@ -366,19 +366,19 @@ def test_expr_translator_boolean_and(context):
     translator = ExprToSMT2Translator()
     
     # (count > 0) and (count < 255)
-    cond1 = dm.ExprBin(
-        lhs=dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1),
-        op=dm.BinOp.Gt,
-        rhs=dm.ExprConstant(value=0)
+    cond1 = ir.ExprBin(
+        lhs=ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1),
+        op=ir.BinOp.Gt,
+        rhs=ir.ExprConstant(value=0)
     )
-    cond2 = dm.ExprBin(
-        lhs=dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1),
-        op=dm.BinOp.Lt,
-        rhs=dm.ExprConstant(value=255)
+    cond2 = ir.ExprBin(
+        lhs=ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1),
+        op=ir.BinOp.Lt,
+        rhs=ir.ExprConstant(value=255)
     )
     
-    expr = dm.ExprBool(
-        op=dm.BoolOp.And,
+    expr = ir.ExprBool(
+        op=ir.BoolOp.And,
         values=[cond1, cond2]
     )
     
@@ -393,16 +393,16 @@ def test_expr_translator_complex_expression(context):
     translator = ExprToSMT2Translator()
     
     # (count + increment) < 255
-    add_expr = dm.ExprBin(
-        lhs=dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1),  # count
-        op=dm.BinOp.Add,
-        rhs=dm.ExprRefField(base=dm.TypeExprRefSelf(), index=2)   # increment
+    add_expr = ir.ExprBin(
+        lhs=ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1),  # count
+        op=ir.BinOp.Add,
+        rhs=ir.ExprRefField(base=ir.TypeExprRefSelf(), index=2)   # increment
     )
     
-    cmp_expr = dm.ExprBin(
+    cmp_expr = ir.ExprBin(
         lhs=add_expr,
-        op=dm.BinOp.Lt,
-        rhs=dm.ExprConstant(value=255)
+        op=ir.BinOp.Lt,
+        rhs=ir.ExprConstant(value=255)
     )
     
     result = translator.translate(cmp_expr, context)
@@ -416,9 +416,9 @@ def test_expr_translator_division_unsigned(context):
     translator = ExprToSMT2Translator()
     
     # count / 2
-    lhs = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    rhs = dm.ExprConstant(value=2)
-    expr = dm.ExprBin(lhs=lhs, op=dm.BinOp.Div, rhs=rhs)
+    lhs = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    rhs = ir.ExprConstant(value=2)
+    expr = ir.ExprBin(lhs=lhs, op=ir.BinOp.Div, rhs=rhs)
     
     result = translator.translate(expr, context)
     assert "bvudiv" in result  # Unsigned division
@@ -429,9 +429,9 @@ def test_expr_translator_modulo_unsigned(context):
     translator = ExprToSMT2Translator()
     
     # count % 10
-    lhs = dm.ExprRefField(base=dm.TypeExprRefSelf(), index=1)
-    rhs = dm.ExprConstant(value=10)
-    expr = dm.ExprBin(lhs=lhs, op=dm.BinOp.Mod, rhs=rhs)
+    lhs = ir.ExprRefField(base=ir.TypeExprRefSelf(), index=1)
+    rhs = ir.ExprConstant(value=10)
+    expr = ir.ExprBin(lhs=lhs, op=ir.BinOp.Mod, rhs=rhs)
     
     result = translator.translate(expr, context)
     assert "bvurem" in result  # Unsigned remainder
@@ -453,7 +453,7 @@ def test_expr_translator_local_var_reference(context):
     context.add_local_var("temp", "#b00001010")
     
     # Reference it
-    expr = dm.ExprRefLocal(name="temp")
+    expr = ir.ExprRefLocal(name="temp")
     result = translator.translate(expr, context)
     
     assert result == "#b00001010"
@@ -463,7 +463,7 @@ def test_expr_translator_local_var_uninitialized(context):
     """Test that using uninitialized local variable raises error."""
     translator = ExprToSMT2Translator()
     
-    expr = dm.ExprRefLocal(name="undefined")
+    expr = ir.ExprRefLocal(name="undefined")
     
     with pytest.raises(ValueError, match="used before assignment"):
         translator.translate(expr, context)

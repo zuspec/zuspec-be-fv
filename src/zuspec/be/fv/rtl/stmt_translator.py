@@ -17,9 +17,9 @@ import sys
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 
 try:
-    from zuspec.dataclasses import dm
+    from zuspec.dataclasses import ir
 except ImportError:
-    dm = None
+    ir = None
 
 from .smt2_module import SMT2Transition
 from .translation_context import TranslationContext
@@ -37,7 +37,7 @@ class StmtToSMT2Translator:
         Returns a single transition per assigned register with the final computed
         next value expression.
         """
-        if dm is None:
+        if ir is None:
             raise ImportError("zuspec.dataclasses not available")
 
         reg_next: Dict[str, str] = {}
@@ -48,22 +48,22 @@ class StmtToSMT2Translator:
         return [SMT2Transition(register_name=reg, next_value_expr=expr) for reg, expr in reg_next.items()]
 
     def _apply_stmt(self, stmt: Any, ctx: TranslationContext, reg_next: Dict[str, str]):
-        if isinstance(stmt, dm.StmtAssign):
+        if isinstance(stmt, ir.StmtAssign):
             self._apply_assign(stmt, ctx, reg_next)
-        elif isinstance(stmt, dm.StmtIf):
+        elif isinstance(stmt, ir.StmtIf):
             self._apply_if(stmt, ctx, reg_next)
-        elif isinstance(stmt, (dm.StmtAssert, dm.StmtAssume, dm.StmtCover, dm.StmtExpr, dm.StmtPass)):
+        elif isinstance(stmt, (ir.StmtAssert, ir.StmtAssume, ir.StmtCover, ir.StmtExpr, ir.StmtPass)):
             # Formal statements and side-effect-free exprs don't affect state updates
             return
         else:
             raise NotImplementedError(f"Statement type not yet supported: {type(stmt)}")
 
-    def _apply_assign(self, stmt: dm.StmtAssign, ctx: TranslationContext, reg_next: Dict[str, str]):
+    def _apply_assign(self, stmt: ir.StmtAssign, ctx: TranslationContext, reg_next: Dict[str, str]):
         rhs_smt_base = self.expr_translator.translate(stmt.value, ctx)
         rhs_w_base = ctx.get_bit_width(stmt.value)
 
         for target in stmt.targets:
-            if isinstance(target, dm.ExprRefField) and isinstance(target.base, dm.TypeExprRefSelf):
+            if isinstance(target, ir.ExprRefField) and isinstance(target.base, ir.TypeExprRefSelf):
                 reg = ctx.get_field_smt_name(target.index)
                 tgt_w = ctx.get_bit_width(target)
                 tgt_signed = ctx.is_signed_type(target)
@@ -76,13 +76,13 @@ class StmtToSMT2Translator:
 
                 reg_next[reg] = rhs_smt
 
-            elif isinstance(target, dm.ExprRefLocal):
+            elif isinstance(target, ir.ExprRefLocal):
                 ctx.add_local_var(target.name, rhs_smt_base)
 
             else:
                 raise ValueError(f"Unsupported assignment target: {type(target)}")
 
-    def _apply_if(self, stmt: dm.StmtIf, ctx: TranslationContext, reg_next: Dict[str, str]):
+    def _apply_if(self, stmt: ir.StmtIf, ctx: TranslationContext, reg_next: Dict[str, str]):
         cond_smt = self.expr_translator.translate(stmt.test, ctx)
 
         base_reg_next = dict(reg_next)

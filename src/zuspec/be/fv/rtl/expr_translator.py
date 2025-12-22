@@ -13,9 +13,9 @@ import sys
 sys.path.insert(0, 'packages/zuspec-dataclasses/src')
 
 try:
-    from zuspec.dataclasses import dm
+    from zuspec.dataclasses import ir
 except ImportError:
-    dm = None
+    ir = None
 
 from .translation_context import TranslationContext
 
@@ -45,35 +45,35 @@ class ExprToSMT2Translator:
         Returns:
             SMT2 expression string
         """
-        if dm is None:
+        if ir is None:
             raise ImportError("zuspec.dataclasses not available")
         
         # Dispatch to appropriate handler based on expression type
-        if isinstance(expr, dm.ExprBin):
+        if isinstance(expr, ir.ExprBin):
             return self.translate_bin(expr, ctx)
-        elif isinstance(expr, dm.ExprUnary):
+        elif isinstance(expr, ir.ExprUnary):
             return self.translate_unary(expr, ctx)
-        elif isinstance(expr, dm.ExprConstant):
+        elif isinstance(expr, ir.ExprConstant):
             return self.translate_constant(expr, ctx)
-        elif isinstance(expr, dm.ExprRefField):
+        elif isinstance(expr, ir.ExprRefField):
             return self.translate_ref_field(expr, ctx)
-        elif isinstance(expr, dm.ExprRefParam):
+        elif isinstance(expr, ir.ExprRefParam):
             return self.translate_ref_param(expr, ctx)
-        elif isinstance(expr, dm.ExprRefLocal):
+        elif isinstance(expr, ir.ExprRefLocal):
             return self.translate_ref_local(expr, ctx)
-        elif isinstance(expr, dm.TypeExprRefSelf):
+        elif isinstance(expr, ir.TypeExprRefSelf):
             return self.translate_ref_self(expr, ctx)
-        elif isinstance(expr, dm.ExprCall):
+        elif isinstance(expr, ir.ExprCall):
             return self.translate_call(expr, ctx)
-        elif isinstance(expr, dm.ExprCompare):
+        elif isinstance(expr, ir.ExprCompare):
             return self.translate_compare(expr, ctx)
-        elif isinstance(expr, dm.ExprBool):
+        elif isinstance(expr, ir.ExprBool):
             return self.translate_bool(expr, ctx)
         else:
             # Fallback for unsupported expressions
             raise NotImplementedError(f"Expression type not yet supported: {type(expr)}")
     
-    def translate_bin(self, expr: dm.ExprBin, ctx: TranslationContext) -> str:
+    def translate_bin(self, expr: ir.ExprBin, ctx: TranslationContext) -> str:
         """Translate binary operation with proper type handling."""
         lhs_smt = self.translate(expr.lhs, ctx)
         rhs_smt = self.translate(expr.rhs, ctx)
@@ -112,48 +112,48 @@ class ExprToSMT2Translator:
         else:
             return f"((_ zero_extend {ext_bits}) {expr})"
     
-    def _get_binary_op(self, op: dm.BinOp, is_signed: bool, is_bool: bool) -> str:
+    def _get_binary_op(self, op: ir.BinOp, is_signed: bool, is_bool: bool) -> str:
         """Get SMT2 operator for binary operation."""
         # Boolean operations
-        if is_bool and op in [dm.BinOp.And, dm.BinOp.Or]:
+        if is_bool and op in [ir.BinOp.And, ir.BinOp.Or]:
             return {
-                dm.BinOp.And: "and",
-                dm.BinOp.Or: "or",
+                ir.BinOp.And: "and",
+                ir.BinOp.Or: "or",
             }[op]
         
         # Comparison operations
-        if op in [dm.BinOp.Lt, dm.BinOp.LtE, dm.BinOp.Gt, dm.BinOp.GtE]:
+        if op in [ir.BinOp.Lt, ir.BinOp.LtE, ir.BinOp.Gt, ir.BinOp.GtE]:
             if is_signed:
                 return {
-                    dm.BinOp.Lt: "bvslt",
-                    dm.BinOp.LtE: "bvsle",
-                    dm.BinOp.Gt: "bvsgt",
-                    dm.BinOp.GtE: "bvsge",
+                    ir.BinOp.Lt: "bvslt",
+                    ir.BinOp.LtE: "bvsle",
+                    ir.BinOp.Gt: "bvsgt",
+                    ir.BinOp.GtE: "bvsge",
                 }[op]
             else:
                 return {
-                    dm.BinOp.Lt: "bvult",
-                    dm.BinOp.LtE: "bvule",
-                    dm.BinOp.Gt: "bvugt",
-                    dm.BinOp.GtE: "bvuge",
+                    ir.BinOp.Lt: "bvult",
+                    ir.BinOp.LtE: "bvule",
+                    ir.BinOp.Gt: "bvugt",
+                    ir.BinOp.GtE: "bvuge",
                 }[op]
         
         # Arithmetic and bitwise operations
         op_map = {
-            dm.BinOp.Add: "bvadd",
-            dm.BinOp.Sub: "bvsub",
-            dm.BinOp.Mult: "bvmul",
-            dm.BinOp.Div: "bvsdiv" if is_signed else "bvudiv",
-            dm.BinOp.Mod: "bvsrem" if is_signed else "bvurem",
-            dm.BinOp.BitAnd: "bvand",
-            dm.BinOp.BitOr: "bvor",
-            dm.BinOp.BitXor: "bvxor",
-            dm.BinOp.LShift: "bvshl",
-            dm.BinOp.RShift: "bvashr" if is_signed else "bvlshr",
-            dm.BinOp.Eq: "=",
-            dm.BinOp.NotEq: "distinct",
-            dm.BinOp.And: "and",
-            dm.BinOp.Or: "or",
+            ir.BinOp.Add: "bvadd",
+            ir.BinOp.Sub: "bvsub",
+            ir.BinOp.Mult: "bvmul",
+            ir.BinOp.Div: "bvsdiv" if is_signed else "bvudiv",
+            ir.BinOp.Mod: "bvsrem" if is_signed else "bvurem",
+            ir.BinOp.BitAnd: "bvand",
+            ir.BinOp.BitOr: "bvor",
+            ir.BinOp.BitXor: "bvxor",
+            ir.BinOp.LShift: "bvshl",
+            ir.BinOp.RShift: "bvashr" if is_signed else "bvlshr",
+            ir.BinOp.Eq: "=",
+            ir.BinOp.NotEq: "distinct",
+            ir.BinOp.And: "and",
+            ir.BinOp.Or: "or",
         }
         
         if op not in op_map:
@@ -161,18 +161,18 @@ class ExprToSMT2Translator:
         
         return op_map[op]
     
-    def translate_unary(self, expr: dm.ExprUnary, ctx: TranslationContext) -> str:
+    def translate_unary(self, expr: ir.ExprUnary, ctx: TranslationContext) -> str:
         """Translate unary operation."""
         operand_smt = self.translate(expr.operand, ctx)
         
         op_map = {
-            dm.UnaryOp.Invert: "bvnot",
-            dm.UnaryOp.Not: "not",
-            dm.UnaryOp.USub: "bvneg",
-            dm.UnaryOp.UAdd: "",
+            ir.UnaryOp.Invert: "bvnot",
+            ir.UnaryOp.Not: "not",
+            ir.UnaryOp.USub: "bvneg",
+            ir.UnaryOp.UAdd: "",
         }
         
-        if expr.op == dm.UnaryOp.UAdd:
+        if expr.op == ir.UnaryOp.UAdd:
             return operand_smt
         
         smt_op = op_map.get(expr.op)
@@ -181,7 +181,7 @@ class ExprToSMT2Translator:
         
         return f"({smt_op} {operand_smt})"
     
-    def translate_constant(self, expr: dm.ExprConstant, ctx: TranslationContext) -> str:
+    def translate_constant(self, expr: ir.ExprConstant, ctx: TranslationContext) -> str:
         """Translate constant value with context-aware width."""
         value = expr.value
         
@@ -191,7 +191,7 @@ class ExprToSMT2Translator:
         elif isinstance(value, int):
             # Infer width from context
             inferred_type = ctx.infer_type(expr)
-            if isinstance(inferred_type, dm.DataTypeInt):
+            if isinstance(inferred_type, ir.DataTypeInt):
                 width = inferred_type.bits if inferred_type.bits > 0 else 32
             else:
                 width = 32
@@ -211,9 +211,9 @@ class ExprToSMT2Translator:
         else:
             raise ValueError(f"Unsupported constant type: {type(value)}")
     
-    def translate_ref_field(self, expr: dm.ExprRefField, ctx: TranslationContext) -> str:
+    def translate_ref_field(self, expr: ir.ExprRefField, ctx: TranslationContext) -> str:
         """Translate field reference to SMT signal access."""
-        if isinstance(expr.base, dm.TypeExprRefSelf):
+        if isinstance(expr.base, ir.TypeExprRefSelf):
             smt_name = ctx.get_field_smt_name(expr.index)
             return f"(|{ctx.module.name}#{smt_name}| {ctx.state_var})"
         else:
@@ -222,31 +222,31 @@ class ExprToSMT2Translator:
                 "Only self.field references are currently supported."
             )
     
-    def translate_ref_param(self, expr: dm.ExprRefParam, ctx: TranslationContext) -> str:
+    def translate_ref_param(self, expr: ir.ExprRefParam, ctx: TranslationContext) -> str:
         """Translate parameter reference."""
         if expr.name in ctx.param_map:
             return ctx.param_map[expr.name]
         return expr.name
     
-    def translate_ref_local(self, expr: dm.ExprRefLocal, ctx: TranslationContext) -> str:
+    def translate_ref_local(self, expr: ir.ExprRefLocal, ctx: TranslationContext) -> str:
         """Translate local variable reference."""
         local_expr = ctx.get_local_var(expr.name)
         if local_expr:
             return local_expr
         raise ValueError(f"Local variable '{expr.name}' used before assignment")
     
-    def translate_ref_self(self, expr: dm.TypeExprRefSelf, ctx: TranslationContext) -> str:
+    def translate_ref_self(self, expr: ir.TypeExprRefSelf, ctx: TranslationContext) -> str:
         """Translate self reference."""
         return ctx.state_var
     
-    def translate_call(self, expr: dm.ExprCall, ctx: TranslationContext) -> str:
+    def translate_call(self, expr: ir.ExprCall, ctx: TranslationContext) -> str:
         """Translate function call."""
         raise NotImplementedError(
             "Function calls not yet supported in RTL expressions. "
             "Use direct operators instead."
         )
     
-    def translate_compare(self, expr: dm.ExprCompare, ctx: TranslationContext) -> str:
+    def translate_compare(self, expr: ir.ExprCompare, ctx: TranslationContext) -> str:
         """Translate comparison expression with chained support."""
         if len(expr.comparators) == 1:
             left_smt = self.translate(expr.left, ctx)
@@ -296,30 +296,30 @@ class ExprToSMT2Translator:
             
             return f"(and {' '.join(comparisons)})"
     
-    def _get_comparison_op(self, op: dm.CmpOp, is_signed: bool) -> str:
+    def _get_comparison_op(self, op: ir.CmpOp, is_signed: bool) -> str:
         """Get SMT2 comparison operator."""
-        if op in [dm.CmpOp.Eq]:
+        if op in [ir.CmpOp.Eq]:
             return "="
-        elif op in [dm.CmpOp.NotEq]:
+        elif op in [ir.CmpOp.NotEq]:
             return "distinct"
-        elif op in [dm.CmpOp.Lt]:
+        elif op in [ir.CmpOp.Lt]:
             return "bvslt" if is_signed else "bvult"
-        elif op in [dm.CmpOp.LtE]:
+        elif op in [ir.CmpOp.LtE]:
             return "bvsle" if is_signed else "bvule"
-        elif op in [dm.CmpOp.Gt]:
+        elif op in [ir.CmpOp.Gt]:
             return "bvsgt" if is_signed else "bvugt"
-        elif op in [dm.CmpOp.GtE]:
+        elif op in [ir.CmpOp.GtE]:
             return "bvsge" if is_signed else "bvuge"
         else:
             raise ValueError(f"Unsupported comparison operator: {op}")
     
-    def translate_bool(self, expr: dm.ExprBool, ctx: TranslationContext) -> str:
+    def translate_bool(self, expr: ir.ExprBool, ctx: TranslationContext) -> str:
         """Translate boolean operation."""
         values_smt = [self.translate(val, ctx) for val in expr.values]
         
-        if expr.op == dm.BoolOp.And:
+        if expr.op == ir.BoolOp.And:
             return f"(and {' '.join(values_smt)})"
-        elif expr.op == dm.BoolOp.Or:
+        elif expr.op == ir.BoolOp.Or:
             return f"(or {' '.join(values_smt)})"
         else:
             raise ValueError(f"Unsupported boolean operator: {expr.op}")
