@@ -1,0 +1,24 @@
+
+package:
+  name: zuspec-be-fv
+
+  setup-deps: []
+
+  dep-sets:
+  - name: default-dev
+    deps:
+    - name: zuspec-dataclasses
+      url: https://github.com/zuspec/zuspec-dataclasses.git
+      branch: mballance/simplify
+    - name: zuspec-be-sw
+      url: https://github.com/zuspec/zuspec-be-sw.git
+      branch: mballance/simplify
+    - name: pytest-dfm
+      url: https://github.com/dv-flow/pytest-dfm.git
+    - name: pytest
+      src: pypi
+    - name: z3-solver
+      src: pypi
+
+
+
