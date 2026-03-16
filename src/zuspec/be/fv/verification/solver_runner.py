@@ -41,7 +41,7 @@ _KNOWN_SOLVERS = {
     "yices": SolverSpec("yices", ("yices-smt2",)),
     "yices-smt2": SolverSpec("yices-smt2", ("yices-smt2",)),
     "boolector": SolverSpec("boolector", ("boolector", "--smt2")),
-    "bitwuzla": SolverSpec("bitwuzla", ("bitwuzla", "--smt2")),
+    "bitwuzla": SolverSpec("bitwuzla", ("bitwuzla",)),
 }
 
 

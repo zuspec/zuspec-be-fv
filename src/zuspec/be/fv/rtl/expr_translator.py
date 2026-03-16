@@ -18,6 +18,7 @@ except ImportError:
     ir = None
 
 from .translation_context import TranslationContext
+from ..smt2.bitvec_ops import extend_bitvec as _extend_bitvec_shared
 
 
 class ExprToSMT2Translator:
@@ -100,17 +101,10 @@ class ExprToSMT2Translator:
         
         return f"({smt_op} {lhs_smt} {rhs_smt})"
     
-    def _extend_bitvec(self, expr: str, from_width: int, to_width: int, 
+    def _extend_bitvec(self, expr: str, from_width: int, to_width: int,
                        signed: bool) -> str:
-        """Extend bitvector to target width."""
-        if from_width == to_width:
-            return expr
-        
-        ext_bits = to_width - from_width
-        if signed:
-            return f"((_ sign_extend {ext_bits}) {expr})"
-        else:
-            return f"((_ zero_extend {ext_bits}) {expr})"
+        """Extend bitvector to target width (delegates to shared bitvec_ops)."""
+        return _extend_bitvec_shared(expr, from_width, to_width, signed)
     
     def _get_binary_op(self, op: ir.BinOp, is_signed: bool, is_bool: bool) -> str:
         """Get SMT2 operator for binary operation."""
