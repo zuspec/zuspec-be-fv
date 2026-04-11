@@ -27,7 +27,8 @@ def generate_k_induction_step_smt2(
     lines: list[str] = []
 
     lines.append(f"; k-induction inductive step for {module.name} k={k}")
-    lines.append("(set-logic QF_UFBV)")
+    logic = "QF_AUFBV" if module.has_array_state else "QF_UFBV"
+    lines.append(f"(set-logic {logic})")
     lines.append("")
 
     lines.append(translator.generate_smt2(module))

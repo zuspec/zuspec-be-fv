@@ -28,12 +28,16 @@ class SMT2Signal:
 
     name: str
     smt_name: str
-    datatype: Any  # ir.DataType
+    datatype: Any = None  # ir.DataType
     direction: Optional[Any] = None  # ir.SignalDirection
     width: int = 1
     is_signed: bool = False
     initial_value: Optional[str] = None
     is_register: bool = False
+
+    # When set, overrides the width/is_signed-based type computation.
+    # Required for non-bitvector sorts such as Array sorts used by regfiles.
+    smt_type: Optional[str] = None
 
     # Combinational definition (Phase 5)
     def_expr: Optional[str] = None
@@ -104,6 +108,8 @@ class SMT2Module:
     outputs: Dict[str, SMT2Signal] = field(default_factory=dict)
     registers: Dict[str, SMT2Signal] = field(default_factory=dict)
     wires: Dict[str, SMT2Signal] = field(default_factory=dict)
+    # When True, bmc_smt2.py uses QF_AUFBV logic (required for Array sorts).
+    has_array_state: bool = False
     comb_logic: List[SMT2Function] = field(default_factory=list)
     transitions: List[SMT2Transition] = field(default_factory=list)
     assertions: List[str] = field(default_factory=list)

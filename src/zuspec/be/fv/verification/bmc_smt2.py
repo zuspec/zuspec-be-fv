@@ -25,7 +25,8 @@ def generate_bmc_smt2(
     lines: list[str] = []
 
     lines.append(f"; BMC problem for {module.name} depth={depth}")
-    lines.append("(set-logic QF_UFBV)")
+    logic = "QF_AUFBV" if module.has_array_state else "QF_UFBV"
+    lines.append(f"(set-logic {logic})")
     lines.append("")
 
     # Module declarations/definitions (sorts, signals, predicates)

@@ -407,6 +407,8 @@ class RTLToSMT2Translator:
         return "\n".join(lines)
     
     def _signal_smt_type(self, sig: SMT2Signal) -> str:
+        if sig.smt_type is not None:
+            return sig.smt_type
         if sig.width == 1 and not sig.is_signed:
             return "Bool"
         return f"(_ BitVec {sig.width})"
