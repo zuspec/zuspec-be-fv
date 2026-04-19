@@ -262,6 +262,10 @@ class RandSMT2Emitter:
         parser = ConstraintParser()
         constraints = parser.extract_constraints(cls)
         for cinfo in constraints:
+            # Postconditions (ensures) are not inputs to the randomization
+            # solver — they are verified after the body executes.
+            if cinfo.get('role') == 'ensures':
+                continue
             cname = cinfo['name']
             for expr_dict in cinfo['exprs']:
                 smt_s, _ = xlator.translate(expr_dict)
@@ -275,7 +279,116 @@ class RandSMT2Emitter:
 
         return "\n".join(lines)
 
-    # ------------------------------------------------------------------
+    def emit_dead_action_check(self, cls: type) -> str:
+        """Return SMT-LIBv2 that checks whether *cls* can ever execute.
+
+        Includes only ``@constraint.requires`` and role-less (plain)
+        ``@constraint`` methods.  If the resulting query is UNSAT the
+        action is *dead* — its preconditions can never be satisfied.
+
+        Returns a complete SMT-LIBv2 string (``(check-sat)`` only, no
+        ``(get-value …)``).
+        """
+        return self._emit_sat_check(cls, include_roles={'requires', None})
+
+    def emit_contract_check(self, cls: type) -> str:
+        """Return SMT-LIBv2 for a refutation check of ``@constraint.ensures``.
+
+        The query asserts:
+        * All ``requires`` + plain constraints (the preconditions), AND
+        * The **negation** of the conjunction of all ``ensures`` expressions.
+
+        If the query is UNSAT the ensures postconditions *always* hold
+        under the preconditions.  If SAT a counterexample is returned.
+
+        Returns a complete SMT-LIBv2 string.
+        """
+        return self._emit_sat_check(cls, include_roles={'requires', None},
+                                    negate_roles={'ensures'})
+
+    def _emit_sat_check(
+        self,
+        cls: type,
+        include_roles: set,
+        negate_roles: Optional[set] = None,
+    ) -> str:
+        """Shared helper for :meth:`emit_dead_action_check` and
+        :meth:`emit_contract_check`."""
+        extract_rand_fields = _get_extract_rand_fields()
+        ConstraintParser = _get_constraint_parser()
+
+        fields = extract_rand_fields(cls)
+        if not fields:
+            raise ValueError(f"{cls.__name__} has no rand fields")
+
+        field_widths = self._compute_field_widths(fields)
+        xlator = _ExprTranslator(field_widths)
+
+        lines: List[str] = []
+        lines.append("(set-option :produce-models true)")
+        lines.append("(set-logic QF_BV)")
+        lines.append("")
+
+        for f in fields:
+            name = f['name']
+            w = field_widths[name]
+            lines.append(f"(declare-const {name} (_ BitVec {w}))")
+        lines.append("")
+
+        # Domain bounds
+        for f in fields:
+            name = f['name']
+            w = field_widths[name]
+            domain = f.get('domain')
+            if domain is None:
+                continue
+            if (
+                isinstance(domain, (list, tuple))
+                and len(domain) == 2
+                and all(isinstance(v, int) for v in domain)
+            ):
+                lo, hi = domain
+                lines.append(
+                    f"(assert (bvuge {name} {bitvec_ops.bitvec_lit(lo, w)}))"
+                )
+                lines.append(
+                    f"(assert (bvule {name} {bitvec_ops.bitvec_lit(hi, w)}))"
+                )
+        lines.append("")
+
+        parser = ConstraintParser()
+        constraints = parser.extract_constraints(cls)
+
+        negate_roles = negate_roles or set()
+        negated_parts: List[str] = []
+
+        for cinfo in constraints:
+            role = cinfo.get('role')
+            cname = cinfo['name']
+            if role not in include_roles and role not in negate_roles:
+                continue
+            for expr_dict in cinfo['exprs']:
+                smt_s, _ = xlator.translate(expr_dict)
+                if role in negate_roles:
+                    negated_parts.append(smt_s)
+                else:
+                    lines.append(f"(assert {smt_s})  ; {cname}")
+
+        if negated_parts:
+            # Assert NOT (ensures_1 ∧ ensures_2 ∧ …) — refutation
+            if len(negated_parts) == 1:
+                conj = negated_parts[0]
+            else:
+                conj = "(and " + " ".join(negated_parts) + ")"
+            lines.append(f"(assert (not {conj}))  ; negated ensures")
+        lines.append("")
+
+        lines.append("(check-sat)")
+        field_names = " ".join(f['name'] for f in fields)
+        lines.append(f"(get-value ({field_names}))")
+        lines.append("")
+
+        return "\n".join(lines)
 
     def _compute_field_widths(self, fields: List[Dict[str, Any]]) -> Dict[str, int]:
         widths: Dict[str, int] = {}

@@ -27,6 +27,8 @@ try:
         check_invariant,
         check_no_overflow,
         find_bounds_violation,
+        check_dead_action,
+        check_action_contracts,
     )
 except Exception:  # pragma: no cover
     SolverBackend = None  # type: ignore
@@ -38,6 +40,8 @@ except Exception:  # pragma: no cover
     check_invariant = None  # type: ignore
     check_no_overflow = None  # type: ignore
     find_bounds_violation = None  # type: ignore
+    check_dead_action = None  # type: ignore
+    check_action_contracts = None  # type: ignore
 
 __all__ = [
     # solver-independent
@@ -56,4 +60,6 @@ __all__ = [
     "check_invariant",
     "check_no_overflow",
     "find_bounds_violation",
+    "check_dead_action",
+    "check_action_contracts",
 ]

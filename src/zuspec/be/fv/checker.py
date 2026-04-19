@@ -251,3 +251,172 @@ def find_bounds_violation(dtype: Type,
 
     analyzer = BoundsAnalyzer()
     return analyzer.check_memory_access(base_field, size_field, memory_bound, struct_type)
+
+
+def check_dead_action(action_cls: Type, solver: str = "z3") -> VerificationResult:
+    """Check whether *action_cls* can ever be executed.
+
+    An action is *dead* when its ``@constraint.requires`` methods together with
+    its plain ``@constraint`` methods form an unsatisfiable system — meaning
+    there is no valid randomization for the action.
+
+    Uses the ``RandSMT2Emitter`` to build a QF_BV query and the Z3 Python API
+    to solve it locally (no subprocess).
+
+    Args:
+        action_cls: A Python class with ``@constraint.requires`` /
+            ``@constraint`` methods and ``rand`` fields.
+        solver: Solver backend name (only ``"z3"`` is currently supported).
+
+    Returns:
+        :class:`~zuspec.be.fv.solver.result.VerificationResult` where
+        ``holds=True`` means the action is *live* (preconditions satisfiable)
+        and ``holds=False`` means it is *dead* (UNSAT).
+    """
+    import time
+    start = time.time()
+
+    from .smt2.rand_emitter import RandSMT2Emitter
+    from .solver.result import SolverResult
+
+    emitter = RandSMT2Emitter()
+    try:
+        smt2_text = emitter.emit_dead_action_check(action_cls)
+    except ValueError as exc:
+        return VerificationResult(
+            holds=False,
+            counterexample=None,
+            solver_time_ms=0.0,
+            solver_name=solver,
+            result=SolverResult.UNKNOWN,
+        )
+
+    sat_result, model = _run_z3_on_smt2(smt2_text)
+    elapsed_ms = (time.time() - start) * 1000
+
+    if sat_result == 'sat':
+        return VerificationResult(
+            holds=True,
+            counterexample=model,
+            solver_time_ms=elapsed_ms,
+            solver_name=solver,
+            result=SolverResult.SAT,
+        )
+    elif sat_result == 'unsat':
+        return VerificationResult(
+            holds=False,
+            counterexample=None,
+            solver_time_ms=elapsed_ms,
+            solver_name=solver,
+            result=SolverResult.UNSAT,
+        )
+    return VerificationResult(
+        holds=False,
+        counterexample=None,
+        solver_time_ms=elapsed_ms,
+        solver_name=solver,
+        result=SolverResult.UNKNOWN,
+    )
+
+
+def check_action_contracts(action_cls: Type, solver: str = "z3") -> VerificationResult:
+    """Check whether ``@constraint.ensures`` postconditions can be violated.
+
+    Uses *refutation*: the query asserts the preconditions (``requires`` +
+    plain constraints) and the **negation** of the ensures postconditions.
+
+    * If UNSAT → ensures always holds under the preconditions (``holds=True``).
+    * If SAT   → a counterexample exists where ensures is violated
+      (``holds=False``; ``counterexample`` contains the witness).
+
+    Note: This checks *syntactic* satisfiability of field constraints and does
+    **not** model the action ``body()`` method.  For full functional
+    verification the body must be modelled separately.
+
+    Args:
+        action_cls: Python class with ``@constraint.requires``,
+            ``@constraint.ensures``, and plain ``@constraint`` methods.
+        solver: Solver backend (only ``"z3"`` supported currently).
+
+    Returns:
+        :class:`~zuspec.be.fv.solver.result.VerificationResult`.
+    """
+    import time
+    start = time.time()
+
+    from .smt2.rand_emitter import RandSMT2Emitter
+    from .solver.result import SolverResult
+
+    emitter = RandSMT2Emitter()
+    try:
+        smt2_text = emitter.emit_contract_check(action_cls)
+    except ValueError:
+        return VerificationResult(
+            holds=False,
+            counterexample=None,
+            solver_time_ms=0.0,
+            solver_name=solver,
+            result=SolverResult.UNKNOWN,
+        )
+
+    sat_result, model = _run_z3_on_smt2(smt2_text)
+    elapsed_ms = (time.time() - start) * 1000
+
+    if sat_result == 'unsat':
+        # Negated ensures is UNSAT → ensures always holds
+        return VerificationResult(
+            holds=True,
+            counterexample=None,
+            solver_time_ms=elapsed_ms,
+            solver_name=solver,
+            result=SolverResult.UNSAT,
+        )
+    elif sat_result == 'sat':
+        # Counterexample: ensures is violated
+        return VerificationResult(
+            holds=False,
+            counterexample=model,
+            solver_time_ms=elapsed_ms,
+            solver_name=solver,
+            result=SolverResult.SAT,
+        )
+    return VerificationResult(
+        holds=False,
+        counterexample=None,
+        solver_time_ms=elapsed_ms,
+        solver_name=solver,
+        result=SolverResult.UNKNOWN,
+    )
+
+
+def _run_z3_on_smt2(smt2_text: str):
+    """Parse *smt2_text* with the Z3 Python API and return ``(status, model)``.
+
+    *status* is ``'sat'``, ``'unsat'``, or ``'unknown'``.
+    *model* is a ``{name: int}`` dict when status is ``'sat'``, else ``None``.
+    """
+    try:
+        import z3
+    except ImportError:
+        return 'unknown', None
+
+    from io import StringIO
+    ctx = z3.Context()
+    solver = z3.Solver(ctx=ctx)
+    try:
+        solver.from_string(smt2_text)
+    except z3.Z3Exception:
+        return 'unknown', None
+
+    result = solver.check()
+    if result == z3.sat:
+        model = solver.model()
+        values = {}
+        for decl in model.decls():
+            val = model[decl]
+            if z3.is_bv_value(val):
+                values[decl.name()] = val.as_long()
+        return 'sat', values
+    elif result == z3.unsat:
+        return 'unsat', None
+    return 'unknown', None
