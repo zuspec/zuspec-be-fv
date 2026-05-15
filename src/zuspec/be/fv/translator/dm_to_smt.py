@@ -120,9 +120,10 @@ class DataModelTranslator:
             }
             problem.add_variable(field_name, var, info)
             
-            # Add bounds constraints if specified
-            if 'bounds' in metadata:
-                bounds = metadata['bounds']
+            # Add domain constraints if specified
+            _domain = metadata.get('domain')
+            if _domain is not None:
+                bounds = _domain
                 if isinstance(bounds, (tuple, list)) and len(bounds) == 2:
                     min_val, max_val = bounds
                     constraint = self.type_translator.create_bounds_constraint(
@@ -175,8 +176,9 @@ class DataModelTranslator:
         
         for field in struct_type.fields:
             metadata = metadata_map.get(field.name, {})
-            if 'bounds' in metadata:
-                bounds = metadata['bounds']
+            _domain = metadata.get('domain')
+            if _domain is not None:
+                bounds = _domain
                 if isinstance(bounds, (tuple, list)) and len(bounds) == 2:
                     bounds_map[field.name] = tuple(bounds)
         

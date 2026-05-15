@@ -60,7 +60,7 @@ def test_translate_simple_struct(translator):
     
     @zdc.dataclass
     class SimpleStruct(zdc.Struct):
-        value: zdc.uint32_t = zdc.field(bounds=(0, 100))
+        value: zdc.uint32_t = zdc.field(domain=(0, 100))
     
     # Get data model
     factory = zdc.data_model_factory.DataModelFactory()
@@ -84,9 +84,9 @@ def test_translate_struct_with_multiple_fields(translator):
     
     @zdc.dataclass
     class MultiFieldStruct(zdc.Struct):
-        addr: zdc.uint32_t = zdc.field(bounds=(0, 0xFFFF))
-        size: zdc.uint8_t = zdc.field(bounds=(1, 128))
-        count: zdc.uint16_t = zdc.field(bounds=(1, 1024))
+        addr: zdc.uint32_t = zdc.field(domain=(0, 0xFFFF))
+        size: zdc.uint8_t = zdc.field(domain=(1, 128))
+        count: zdc.uint16_t = zdc.field(domain=(1, 1024))
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(MultiFieldStruct)
@@ -133,8 +133,8 @@ def test_extract_field_bounds(translator):
     
     @zdc.dataclass
     class BoundedStruct(zdc.Struct):
-        low: zdc.uint8_t = zdc.field(bounds=(0, 50))
-        high: zdc.uint8_t = zdc.field(bounds=(51, 100))
+        low: zdc.uint8_t = zdc.field(domain=(0, 50))
+        high: zdc.uint8_t = zdc.field(domain=(51, 100))
         unbounded: zdc.uint32_t
     
     factory = zdc.data_model_factory.DataModelFactory()
@@ -155,7 +155,7 @@ def test_translate_signed_field(translator):
     
     @zdc.dataclass
     class SignedStruct(zdc.Struct):
-        offset: zdc.int32_t = zdc.field(bounds=(-100, 100))
+        offset: zdc.int32_t = zdc.field(domain=(-100, 100))
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(SignedStruct)
@@ -174,8 +174,8 @@ def test_translate_with_verification(translator):
     
     @zdc.dataclass
     class VerifiableStruct(zdc.Struct):
-        x: zdc.uint8_t = zdc.field(bounds=(10, 20))
-        y: zdc.uint8_t = zdc.field(bounds=(30, 40))
+        x: zdc.uint8_t = zdc.field(domain=(10, 20))
+        y: zdc.uint8_t = zdc.field(domain=(30, 40))
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(VerifiableStruct)

@@ -23,8 +23,8 @@ def test_check_memory_access_safe(analyzer):
     
     @zdc.dataclass
     class SafeAccess(zdc.Struct):
-        base: zdc.uint32_t = zdc.field(bounds=(0, 0x1000))
-        size: zdc.uint32_t = zdc.field(bounds=(1, 0x100))
+        base: zdc.uint32_t = zdc.field(domain=(0, 0x1000))
+        size: zdc.uint32_t = zdc.field(domain=(1, 0x100))
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(SafeAccess)
@@ -44,8 +44,8 @@ def test_check_memory_access_violation(analyzer):
     
     @zdc.dataclass
     class UnsafeAccess(zdc.Struct):
-        base: zdc.uint32_t = zdc.field(bounds=(0, 0xFFFF))
-        size: zdc.uint32_t = zdc.field(bounds=(1, 0x1000))
+        base: zdc.uint32_t = zdc.field(domain=(0, 0xFFFF))
+        size: zdc.uint32_t = zdc.field(domain=(1, 0x1000))
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(UnsafeAccess)
@@ -75,8 +75,8 @@ def test_check_memory_access_tight_bounds(analyzer):
     
     @zdc.dataclass
     class TightBounds(zdc.Struct):
-        base: zdc.uint16_t = zdc.field(bounds=(0, 100))
-        size: zdc.uint8_t = zdc.field(bounds=(1, 10))
+        base: zdc.uint16_t = zdc.field(domain=(0, 100))
+        size: zdc.uint8_t = zdc.field(domain=(1, 10))
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(TightBounds)
@@ -94,8 +94,8 @@ def test_check_no_overflow_safe(analyzer):
     
     @zdc.dataclass
     class NoOverflow(zdc.Struct):
-        a: zdc.uint8_t = zdc.field(bounds=(0, 100))
-        b: zdc.uint8_t = zdc.field(bounds=(0, 100))
+        a: zdc.uint8_t = zdc.field(domain=(0, 100))
+        b: zdc.uint8_t = zdc.field(domain=(0, 100))
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(NoOverflow)
@@ -115,8 +115,8 @@ def test_check_no_overflow_possible(analyzer):
     
     @zdc.dataclass
     class CanOverflow(zdc.Struct):
-        a: zdc.uint8_t = zdc.field(bounds=(200, 250))
-        b: zdc.uint8_t = zdc.field(bounds=(50, 100))
+        a: zdc.uint8_t = zdc.field(domain=(200, 250))
+        b: zdc.uint8_t = zdc.field(domain=(50, 100))
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(CanOverflow)
@@ -136,10 +136,10 @@ def test_check_non_overlapping_safe(analyzer):
     
     @zdc.dataclass
     class NonOverlapping(zdc.Struct):
-        src_base: zdc.uint32_t = zdc.field(bounds=(0, 0x1000))
-        src_size: zdc.uint32_t = zdc.field(bounds=(1, 0x100))
-        dst_base: zdc.uint32_t = zdc.field(bounds=(0x2000, 0x3000))
-        dst_size: zdc.uint32_t = zdc.field(bounds=(1, 0x100))
+        src_base: zdc.uint32_t = zdc.field(domain=(0, 0x1000))
+        src_size: zdc.uint32_t = zdc.field(domain=(1, 0x100))
+        dst_base: zdc.uint32_t = zdc.field(domain=(0x2000, 0x3000))
+        dst_size: zdc.uint32_t = zdc.field(domain=(1, 0x100))
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(NonOverlapping)
@@ -160,10 +160,10 @@ def test_check_non_overlapping_can_overlap(analyzer):
     
     @zdc.dataclass
     class CanOverlap(zdc.Struct):
-        src_base: zdc.uint32_t = zdc.field(bounds=(0, 0x1000))
-        src_size: zdc.uint32_t = zdc.field(bounds=(1, 0x100))
-        dst_base: zdc.uint32_t = zdc.field(bounds=(0, 0x1000))
-        dst_size: zdc.uint32_t = zdc.field(bounds=(1, 0x100))
+        src_base: zdc.uint32_t = zdc.field(domain=(0, 0x1000))
+        src_size: zdc.uint32_t = zdc.field(domain=(1, 0x100))
+        dst_base: zdc.uint32_t = zdc.field(domain=(0, 0x1000))
+        dst_size: zdc.uint32_t = zdc.field(domain=(1, 0x100))
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(CanOverlap)
@@ -185,7 +185,7 @@ def test_analyzer_field_not_found(analyzer):
     
     @zdc.dataclass
     class SimpleStruct(zdc.Struct):
-        value: zdc.uint32_t = zdc.field(bounds=(0, 100))
+        value: zdc.uint32_t = zdc.field(domain=(0, 100))
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(SimpleStruct)
@@ -201,8 +201,8 @@ def test_analyzer_timing_info(analyzer):
     
     @zdc.dataclass
     class TimingTest(zdc.Struct):
-        base: zdc.uint32_t = zdc.field(bounds=(0, 1000))
-        size: zdc.uint32_t = zdc.field(bounds=(1, 100))
+        base: zdc.uint32_t = zdc.field(domain=(0, 1000))
+        size: zdc.uint32_t = zdc.field(domain=(1, 100))
     
     factory = zdc.data_model_factory.DataModelFactory()
     context = factory.build(TimingTest)

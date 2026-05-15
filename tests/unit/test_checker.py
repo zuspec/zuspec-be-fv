@@ -19,7 +19,7 @@ def test_check_bounds_simple():
     
     @zdc.dataclass
     class SimpleConfig(zdc.Struct):
-        value: zdc.uint32_t = zdc.field(bounds=(0, 100))
+        value: zdc.uint32_t = zdc.field(domain=(0, 100))
     
     result = check_bounds(SimpleConfig)
     
@@ -33,9 +33,9 @@ def test_check_bounds_multiple_fields():
     
     @zdc.dataclass
     class MultiConfig(zdc.Struct):
-        addr: zdc.uint32_t = zdc.field(bounds=(0, 0xFFFF))
-        size: zdc.uint8_t = zdc.field(bounds=(1, 128))
-        count: zdc.uint16_t = zdc.field(bounds=(1, 1024))
+        addr: zdc.uint32_t = zdc.field(domain=(0, 0xFFFF))
+        size: zdc.uint8_t = zdc.field(domain=(1, 128))
+        count: zdc.uint16_t = zdc.field(domain=(1, 1024))
     
     result = check_bounds(MultiConfig)
     
@@ -48,7 +48,7 @@ def test_check_bounds_contradictory():
     
     @zdc.dataclass
     class BadConfig(zdc.Struct):
-        value: zdc.uint8_t = zdc.field(bounds=(100, 50))  # min > max
+        value: zdc.uint8_t = zdc.field(domain=(100, 50))  # min > max
     
     result = check_bounds(BadConfig)
     
@@ -62,8 +62,8 @@ def test_check_bounds_with_memory_bounds():
     
     @zdc.dataclass
     class DmaConfig(zdc.Struct):
-        src: zdc.uint32_t = zdc.field(bounds=(0, 0xFFFF))
-        size: zdc.uint8_t = zdc.field(bounds=(1, 128))
+        src: zdc.uint32_t = zdc.field(domain=(0, 0xFFFF))
+        size: zdc.uint8_t = zdc.field(domain=(1, 128))
     
     # Check with memory bounds: src + size <= 0x10000
     result = check_bounds(DmaConfig, memory_bounds={"src": 0x10000})
@@ -90,8 +90,8 @@ def test_find_bounds_violation_safe():
     
     @zdc.dataclass
     class SafeConfig(zdc.Struct):
-        base: zdc.uint32_t = zdc.field(bounds=(0, 0x1000))
-        size: zdc.uint8_t = zdc.field(bounds=(1, 0x100))
+        base: zdc.uint32_t = zdc.field(domain=(0, 0x1000))
+        size: zdc.uint8_t = zdc.field(domain=(1, 0x100))
     
     # Check base + size against 0x2000 (should be safe)
     result = find_bounds_violation(SafeConfig, 'base', 'size', 0x2000)
@@ -105,8 +105,8 @@ def test_find_bounds_violation_unsafe():
     
     @zdc.dataclass
     class UnsafeConfig(zdc.Struct):
-        base: zdc.uint32_t = zdc.field(bounds=(0, 0xFFFF))
-        size: zdc.uint16_t = zdc.field(bounds=(1, 0x1000))
+        base: zdc.uint32_t = zdc.field(domain=(0, 0xFFFF))
+        size: zdc.uint16_t = zdc.field(domain=(1, 0x1000))
     
     # Check base + size against 0x1000 (violation possible)
     result = find_bounds_violation(UnsafeConfig, 'base', 'size', 0x1000)
@@ -126,8 +126,8 @@ def test_check_no_overflow_safe():
     
     @zdc.dataclass
     class SafeArith(zdc.Struct):
-        a: zdc.uint8_t = zdc.field(bounds=(0, 100))
-        b: zdc.uint8_t = zdc.field(bounds=(0, 100))
+        a: zdc.uint8_t = zdc.field(domain=(0, 100))
+        b: zdc.uint8_t = zdc.field(domain=(0, 100))
     
     result = check_no_overflow(SafeArith, ['a', 'b'])
     
@@ -140,8 +140,8 @@ def test_check_no_overflow_possible():
     
     @zdc.dataclass
     class OverflowArith(zdc.Struct):
-        a: zdc.uint8_t = zdc.field(bounds=(200, 250))
-        b: zdc.uint8_t = zdc.field(bounds=(50, 100))
+        a: zdc.uint8_t = zdc.field(domain=(200, 250))
+        b: zdc.uint8_t = zdc.field(domain=(50, 100))
     
     result = check_no_overflow(OverflowArith, ['a', 'b'])
     
@@ -155,10 +155,10 @@ def test_dma_bounds_example():
     
     @zdc.dataclass
     class DmaConfig(zdc.Struct):
-        src: zdc.uint32_t = zdc.field(bounds=(0, 0xFFFF))
-        dst: zdc.uint32_t = zdc.field(bounds=(0, 0xFFFF))
-        xfer_sz: zdc.uint8_t = zdc.field(bounds=(1, 128))
-        xfer_tot: zdc.uint16_t = zdc.field(bounds=(1, 1024))
+        src: zdc.uint32_t = zdc.field(domain=(0, 0xFFFF))
+        dst: zdc.uint32_t = zdc.field(domain=(0, 0xFFFF))
+        xfer_sz: zdc.uint8_t = zdc.field(domain=(1, 128))
+        xfer_tot: zdc.uint16_t = zdc.field(domain=(1, 1024))
     
     # Check basic field bounds
     result = check_bounds(DmaConfig)
@@ -178,8 +178,8 @@ def test_tight_bounds_example():
     
     @zdc.dataclass
     class TightConfig(zdc.Struct):
-        addr: zdc.uint16_t = zdc.field(bounds=(0, 1000))
-        len: zdc.uint8_t = zdc.field(bounds=(1, 50))
+        addr: zdc.uint16_t = zdc.field(domain=(0, 1000))
+        len: zdc.uint8_t = zdc.field(domain=(1, 50))
     
     # Check addr + len <= 1100 (max is 1050, should be safe)
     result = find_bounds_violation(TightConfig, 'addr', 'len', 1100)
@@ -193,7 +193,7 @@ def test_checker_error_handling():
     
     @zdc.dataclass
     class TestStruct(zdc.Struct):
-        value: zdc.uint32_t = zdc.field(bounds=(0, 100))
+        value: zdc.uint32_t = zdc.field(domain=(0, 100))
     
     # Test with non-existent field
     with pytest.raises(ValueError):
@@ -209,7 +209,7 @@ def test_result_has_timing():
     
     @zdc.dataclass
     class TimingStruct(zdc.Struct):
-        value: zdc.uint32_t = zdc.field(bounds=(0, 100))
+        value: zdc.uint32_t = zdc.field(domain=(0, 100))
     
     result = check_bounds(TimingStruct)
     
@@ -222,7 +222,7 @@ def test_result_string_representation():
     
     @zdc.dataclass
     class ResultStruct(zdc.Struct):
-        value: zdc.uint32_t = zdc.field(bounds=(0, 100))
+        value: zdc.uint32_t = zdc.field(domain=(0, 100))
     
     result = check_bounds(ResultStruct)
     
