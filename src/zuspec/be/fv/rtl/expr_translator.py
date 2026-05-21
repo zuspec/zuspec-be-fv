@@ -103,7 +103,16 @@ class ExprToSMT2Translator:
     
     def _extend_bitvec(self, expr: str, from_width: int, to_width: int,
                        signed: bool) -> str:
-        """Extend bitvector to target width (delegates to shared bitvec_ops)."""
+        """Extend bitvector to target width (delegates to shared bitvec_ops).
+
+        If *from_width* is 1 the source may be Bool in SMT2; convert to
+        BV1 before applying zero/sign_extend.
+        """
+        if from_width == 1 and to_width > 1:
+            # Source may be Bool in SMT2; convert to BV1 before extending.
+            # BV1 literals are left as-is; Bool expressions get ite wrapping.
+            if expr not in ('#b0', '#b1'):
+                expr = f'(ite {expr} #b1 #b0)'
         return _extend_bitvec_shared(expr, from_width, to_width, signed)
     
     def _get_binary_op(self, op: ir.BinOp, is_signed: bool, is_bool: bool) -> str:
@@ -240,54 +249,69 @@ class ExprToSMT2Translator:
             "Use direct operators instead."
         )
     
+    @staticmethod
+    def _is_bool_signal(expr, ctx):
+        """Check if expr maps to a Bool-typed SMT2 signal (1-bit unsigned field)."""
+        if not isinstance(expr, ir.ExprRefField):
+            return False
+        if not isinstance(expr.base, ir.TypeExprRefSelf):
+            return False
+        return ctx.get_bit_width(expr) == 1 and not ctx.is_signed_type(expr)
+
+    @staticmethod
+    def _coerce_bv1_to_bool(smt):
+        """Convert a BitVec(1) literal to the equivalent Bool literal."""
+        if smt == '#b1':
+            return 'true'
+        if smt == '#b0':
+            return 'false'
+        return f'(= {smt} #b1)'
+
+    def _compare_pair(self, left_expr, right_expr, op, ctx):
+        """Translate a single comparison pair, handling Bool/BV1 coercion."""
+        left_smt = self.translate(left_expr, ctx)
+        right_smt = self.translate(right_expr, ctx)
+        is_signed = ctx.is_signed_type(left_expr) or ctx.is_signed_type(right_expr)
+        left_width = ctx.get_bit_width(left_expr)
+        right_width = ctx.get_bit_width(right_expr)
+
+        # Coerce Bool/BitVec(1) mismatches for = and distinct
+        if op in (ir.CmpOp.Eq, ir.CmpOp.NotEq):
+            l_bool = self._is_bool_signal(left_expr, ctx)
+            r_bool = self._is_bool_signal(right_expr, ctx)
+            if l_bool and not r_bool and right_width == 1:
+                right_smt = self._coerce_bv1_to_bool(right_smt)
+                smt_op = self._get_comparison_op(op, is_signed)
+                return f'({smt_op} {left_smt} {right_smt})'
+            if r_bool and not l_bool and left_width == 1:
+                left_smt = self._coerce_bv1_to_bool(left_smt)
+                smt_op = self._get_comparison_op(op, is_signed)
+                return f'({smt_op} {left_smt} {right_smt})'
+
+        if left_width != right_width:
+            target_width = max(left_width, right_width)
+            if left_width < target_width:
+                left_smt = self._extend_bitvec(left_smt, left_width, target_width,
+                                               ctx.is_signed_type(left_expr))
+            if right_width < target_width:
+                right_smt = self._extend_bitvec(right_smt, right_width, target_width,
+                                                ctx.is_signed_type(right_expr))
+
+        smt_op = self._get_comparison_op(op, is_signed)
+        return f'({smt_op} {left_smt} {right_smt})'
+
     def translate_compare(self, expr: ir.ExprCompare, ctx: TranslationContext) -> str:
         """Translate comparison expression with chained support."""
         if len(expr.comparators) == 1:
-            left_smt = self.translate(expr.left, ctx)
-            right_smt = self.translate(expr.comparators[0], ctx)
-            
-            is_signed = ctx.is_signed_type(expr.left) or ctx.is_signed_type(expr.comparators[0])
-            left_width = ctx.get_bit_width(expr.left)
-            right_width = ctx.get_bit_width(expr.comparators[0])
-            
-            if left_width != right_width:
-                target_width = max(left_width, right_width)
-                if left_width < target_width:
-                    left_smt = self._extend_bitvec(left_smt, left_width, target_width, 
-                                                   ctx.is_signed_type(expr.left))
-                if right_width < target_width:
-                    right_smt = self._extend_bitvec(right_smt, right_width, target_width,
-                                                    ctx.is_signed_type(expr.comparators[0]))
-            
-            op = self._get_comparison_op(expr.ops[0], is_signed)
-            return f"({op} {left_smt} {right_smt})"
-        
+            return self._compare_pair(expr.left, expr.comparators[0],
+                                      expr.ops[0], ctx)
         else:
-            # Chained comparison
             comparisons = []
             prev_expr = expr.left
-            
             for op, comparator in zip(expr.ops, expr.comparators):
-                left_smt = self.translate(prev_expr, ctx)
-                right_smt = self.translate(comparator, ctx)
-                
-                is_signed = ctx.is_signed_type(prev_expr) or ctx.is_signed_type(comparator)
-                left_width = ctx.get_bit_width(prev_expr)
-                right_width = ctx.get_bit_width(comparator)
-                
-                if left_width != right_width:
-                    target_width = max(left_width, right_width)
-                    if left_width < target_width:
-                        left_smt = self._extend_bitvec(left_smt, left_width, target_width,
-                                                       ctx.is_signed_type(prev_expr))
-                    if right_width < target_width:
-                        right_smt = self._extend_bitvec(right_smt, right_width, target_width,
-                                                        ctx.is_signed_type(comparator))
-                
-                smt_op = self._get_comparison_op(op, is_signed)
-                comparisons.append(f"({smt_op} {left_smt} {right_smt})")
+                comparisons.append(
+                    self._compare_pair(prev_expr, comparator, op, ctx))
                 prev_expr = comparator
-            
             return f"(and {' '.join(comparisons)})"
     
     def _get_comparison_op(self, op: ir.CmpOp, is_signed: bool) -> str:

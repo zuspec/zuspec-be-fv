@@ -58,6 +58,16 @@ class StmtToSMT2Translator:
         else:
             raise NotImplementedError(f"Statement type not yet supported: {type(stmt)}")
 
+    @staticmethod
+    def _coerce_to_bool(smt: str) -> str:
+        """Coerce a BitVec(1) expression to Bool for 1-bit Bool-typed signals."""
+        if smt == '#b1':
+            return 'true'
+        if smt == '#b0':
+            return 'false'
+        # Assume the expression is already Bool-typed (signal ref, ITE, etc.)
+        return smt
+
     def _apply_assign(self, stmt: ir.StmtAssign, ctx: TranslationContext, reg_next: Dict[str, str]):
         rhs_smt_base = self.expr_translator.translate(stmt.value, ctx)
         rhs_w_base = ctx.get_bit_width(stmt.value)
@@ -73,6 +83,11 @@ class StmtToSMT2Translator:
 
                 if rhs_w != tgt_w:
                     rhs_smt = self._extend(rhs_smt, rhs_w, tgt_w, tgt_signed)
+
+                # Coerce BV1 constants to Bool for 1-bit unsigned fields
+                # (which are declared as Bool in the SMT2 output).
+                if tgt_w == 1 and not tgt_signed:
+                    rhs_smt = self._coerce_to_bool(rhs_smt)
 
                 reg_next[reg] = rhs_smt
 
@@ -149,5 +164,8 @@ class StmtToSMT2Translator:
     def _extend(self, expr: str, from_w: int, to_w: int, signed: bool) -> str:
         if from_w == to_w:
             return expr
+        # Convert possible Bool to BV1 before extending
+        if from_w == 1 and expr not in ('#b0', '#b1'):
+            expr = f'(ite {expr} #b1 #b0)'
         ext = to_w - from_w
         return f"((_ sign_extend {ext}) {expr})" if signed else f"((_ zero_extend {ext}) {expr})"
