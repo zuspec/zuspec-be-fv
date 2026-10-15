@@ -4,18 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zuspec-be-fv"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Formal verification backend for Zuspec dataclasses"
 readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
 authors = [
     {name = "Zuspec Contributors"}
 ]
 dependencies = [
     "z3-solver>=4.12.0",
+    # Every entry point beyond the solver wrapper reads a @zdc model
+    # (DataModelFactory, constraint_parser) and its IR; both are imported
+    # lazily, but nothing useful runs without them.
+    "zuspec-dataclasses",
+    "zuspec-ir-core>=0.2.0",
 ]
 
 [project.optional-dependencies]
+# zuspec.be.fv.pipeline (PipelineIRToSMT2) reads zuspec-synth's pipeline IR.
+synth = [
+    "zuspec-synth",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov",
@@ -23,6 +33,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+namespaces = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

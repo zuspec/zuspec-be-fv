@@ -7,7 +7,7 @@ This package contains two layers:
 Importing `zuspec.be.fv` must *not* require the Python Z3 bindings.
 """
 
-__version__ = "0.1.0"
+from .__version__ import version as __version__
 
 # Always-available pieces (no solver dependency)
 from . import rtl as rtl
