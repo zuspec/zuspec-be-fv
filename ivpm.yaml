@@ -11,6 +11,9 @@ package:
       url: https://github.com/zuspec/zuspec-dataclasses.git
     - name: zuspec-be-sw
       url: https://github.com/zuspec/zuspec-be-sw.git
+    # tests/unit (pipeline -> SMT2) import zuspec.synth.
+    - name: zuspec-synth
+      url: https://github.com/zuspec/zuspec-synth.git
     - name: pytest-dfm
       url: https://github.com/dv-flow/pytest-dfm.git
     - name: pytest
