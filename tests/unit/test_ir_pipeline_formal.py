@@ -18,15 +18,17 @@ import pytest
 # ---------------------------------------------------------------------------
 # Inject zuspec-synth sources and tests directory
 # ---------------------------------------------------------------------------
-_repo_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
-)
-_synth_src = os.path.join(_repo_root, "packages", "zuspec-synth", "src")
-_synth_tests = os.path.join(_repo_root, "packages", "zuspec-synth", "tests")
-_dc_src = os.path.join(_repo_root, "packages", "zuspec-dataclasses", "src")
-for _p in (_synth_src, _dc_src, _synth_tests):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+# The siblings live in a workspace's packages/ (this repo checked out beside
+# them) or in this repo's own packages/ (where ivpm puts them, as in CI).
+_here = os.path.dirname(__file__)
+for _root in (os.path.join(_here, "..", "..", "..", ".."),
+              os.path.join(_here, "..", "..")):
+    _root = os.path.abspath(_root)
+    for _p in (os.path.join(_root, "packages", "zuspec-synth", "src"),
+               os.path.join(_root, "packages", "zuspec-dataclasses", "src"),
+               os.path.join(_root, "packages", "zuspec-synth", "tests")):
+        if os.path.isdir(_p) and _p not in sys.path:
+            sys.path.insert(0, _p)
 
 from zuspec.be.fv.pipeline.pipeline_to_smt2 import PipelineIRToSMT2
 from zuspec.be.fv.verification.verifier import verify_bmc, prove_k_induction
